@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Matilda Kitchen — Menú</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Sora:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-bg" aria-hidden="true"></div>
+
+    <nav class="site-nav" aria-label="Secciones">
+      <a class="site-nav-btn is-active" href="/">Menú</a>
+      <a class="site-nav-btn" href="/historial.html">Historial</a>
+      <a class="site-nav-btn" href="/pagar.html">Pagar cuenta</a>
+    </nav>
+
+    <header class="hero">
+      <p class="brand">Matilda Kitchen</p>
+      <h1 class="headline">Elige una sección del menú</h1>
+      <p class="lede">Toca una categoría para ver sus platillos abajo.</p>
+    </header>
+
+    <main class="home-main">
+      <div class="category-scroll">
+        <button
+          type="button"
+          class="category-arrow category-arrow-left"
+          id="cat-prev"
+          aria-label="Categorías anteriores"
+        >
+          ‹
+        </button>
+        <div class="category-grid" id="category-grid" role="tablist" aria-label="Categorías del menú">
+          <button type="button" class="category-link is-active" role="tab" aria-selected="true" data-category="recomendaciones">
+            <span class="category-label">Recomendaciones</span>
+            <span class="category-hint">Lo más pedido</span>
+          </button>
+          <button type="button" class="category-link" role="tab" aria-selected="false" data-category="entradas">
+            <span class="category-label">Entradas</span>
+            <span class="category-hint">Para empezar</span>
+          </button>
+          <button type="button" class="category-link" role="tab" aria-selected="false" data-category="comidas">
+            <span class="category-label">Comidas</span>
+            <span class="category-hint">Platos fuertes</span>
+          </button>
+          <button type="button" class="category-link" role="tab" aria-selected="false" data-category="bebidas">
+            <span class="category-label">Bebidas</span>
+            <span class="category-hint">Para acompañar</span>
+          </button>
+          <button type="button" class="category-link" role="tab" aria-selected="false" data-category="postres">
+            <span class="category-label">Postres</span>
+            <span class="category-hint">Dulce final</span>
+          </button>
+          <button type="button" class="category-link" role="tab" aria-selected="false" data-category="extras">
+            <span class="category-label">Extras</span>
+            <span class="category-hint">Complementos</span>
+          </button>
+        </div>
+        <button
+          type="button"
+          class="category-arrow category-arrow-right"
+          id="cat-next"
+          aria-label="Categorías siguientes"
+        >
+          ›
+        </button>
+      </div>
+
+      <div class="category-panels">
+        <section class="menu-section menu-section-solo category-panel is-active" id="panel-recomendaciones" data-panel="recomendaciones">
+          <div class="section-head">
+            <h2>Recomendaciones</h2>
+            <p>Lo más pedido de la casa. Toca la imagen para agregar.</p>
+          </div>
+          <div class="menu-scroll">
+          <button type="button" class="menu-arrow menu-arrow-left" aria-label="Platillos anteriores">‹</button>
+          <ul class="menu-list">
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="sushi" data-name="Sushi" data-price="120" aria-label="Agregar Sushi, 120 pesos">
+                <span class="dish-name">Sushi</span>
+                <img class="item-photo" src="/images/menu/sushi.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$120</span>
+              </button>
+            </li>
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="ramen" data-name="Ramen" data-price="110" aria-label="Agregar Ramen, 110 pesos">
+                <span class="dish-name">Ramen</span>
+                <img class="item-photo" src="/images/menu/ramen.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$110</span>
+              </button>
+            </li>
+          </ul>
+          <button type="button" class="menu-arrow menu-arrow-right" aria-label="Platillos siguientes">›</button>
+        </div>
+        </section>
+
+        <section class="menu-section menu-section-solo category-panel" id="panel-entradas" data-panel="entradas" hidden>
+          <div class="section-head">
+            <h2>Entradas</h2>
+            <p>Para abrir el apetito. Toca la imagen para agregar.</p>
+          </div>
+          <div class="menu-scroll">
+          <button type="button" class="menu-arrow menu-arrow-left" aria-label="Platillos anteriores">‹</button>
+          <ul class="menu-list">
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="gyoza" data-name="Gyoza" data-price="85" aria-label="Agregar Gyoza, 85 pesos">
+                <span class="dish-name">Gyoza</span>
+                <img class="item-photo" src="/images/menu/gyoza.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$85</span>
+              </button>
+            </li>
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="edamame" data-name="Edamame" data-price="55" aria-label="Agregar Edamame, 55 pesos">
+                <span class="dish-name">Edamame</span>
+                <img class="item-photo" src="/images/menu/edamame.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$55</span>
+              </button>
+            </li>
+          </ul>
+          <button type="button" class="menu-arrow menu-arrow-right" aria-label="Platillos siguientes">›</button>
+        </div>
+        </section>
+
+        <section class="menu-section menu-section-solo category-panel" id="panel-comidas" data-panel="comidas" hidden>
+          <div class="section-head">
+            <h2>Comidas</h2>
+            <p>Platos fuertes de la casa. Toca la imagen para agregar.</p>
+          </div>
+          <div class="menu-scroll">
+          <button type="button" class="menu-arrow menu-arrow-left" aria-label="Platillos anteriores">‹</button>
+          <ul class="menu-list">
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="sushi" data-name="Sushi" data-price="120" aria-label="Agregar Sushi, 120 pesos">
+                <span class="dish-name">Sushi</span>
+                <img class="item-photo" src="/images/menu/sushi.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$120</span>
+              </button>
+            </li>
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="ramen" data-name="Ramen" data-price="110" aria-label="Agregar Ramen, 110 pesos">
+                <span class="dish-name">Ramen</span>
+                <img class="item-photo" src="/images/menu/ramen.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$110</span>
+              </button>
+            </li>
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="teriyaki" data-name="Pollo teriyaki" data-price="130" aria-label="Agregar Pollo teriyaki, 130 pesos">
+                <span class="dish-name">Pollo teriyaki</span>
+                <img class="item-photo" src="/images/menu/teriyaki.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$130</span>
+              </button>
+            </li>
+          </ul>
+          <button type="button" class="menu-arrow menu-arrow-right" aria-label="Platillos siguientes">›</button>
+        </div>
+        </section>
+
+        <section class="menu-section menu-section-solo category-panel" id="panel-bebidas" data-panel="bebidas" hidden>
+          <div class="section-head">
+            <h2>Bebidas</h2>
+            <p>Para acompañar. Toca la imagen para agregar.</p>
+          </div>
+          <div class="menu-scroll">
+          <button type="button" class="menu-arrow menu-arrow-left" aria-label="Platillos anteriores">‹</button>
+          <ul class="menu-list">
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="agua" data-name="Agua" data-price="25" aria-label="Agregar Agua, 25 pesos">
+                <span class="dish-name">Agua</span>
+                <img class="item-photo" src="/images/menu/agua.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$25</span>
+              </button>
+            </li>
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="coca" data-name="Coca" data-price="35" aria-label="Agregar Coca, 35 pesos">
+                <span class="dish-name">Coca</span>
+                <img class="item-photo" src="/images/menu/coca.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$35</span>
+              </button>
+            </li>
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="te-verde" data-name="Té verde" data-price="40" aria-label="Agregar Té verde, 40 pesos">
+                <span class="dish-name">Té verde</span>
+                <img class="item-photo" src="/images/menu/te-verde.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$40</span>
+              </button>
+            </li>
+          </ul>
+          <button type="button" class="menu-arrow menu-arrow-right" aria-label="Platillos siguientes">›</button>
+        </div>
+        </section>
+
+        <section class="menu-section menu-section-solo category-panel" id="panel-postres" data-panel="postres" hidden>
+          <div class="section-head">
+            <h2>Postres</h2>
+            <p>Un cierre dulce. Toca la imagen para agregar.</p>
+          </div>
+          <div class="menu-scroll">
+          <button type="button" class="menu-arrow menu-arrow-left" aria-label="Platillos anteriores">‹</button>
+          <ul class="menu-list">
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="mochi" data-name="Mochi" data-price="60" aria-label="Agregar Mochi, 60 pesos">
+                <span class="dish-name">Mochi</span>
+                <img class="item-photo" src="/images/menu/mochi.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$60</span>
+              </button>
+            </li>
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="helado-te" data-name="Helado de té" data-price="55" aria-label="Agregar Helado de té, 55 pesos">
+                <span class="dish-name">Helado de té</span>
+                <img class="item-photo" src="/images/menu/helado-te.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$55</span>
+              </button>
+            </li>
+          </ul>
+          <button type="button" class="menu-arrow menu-arrow-right" aria-label="Platillos siguientes">›</button>
+        </div>
+        </section>
+
+        <section class="menu-section menu-section-solo category-panel" id="panel-extras" data-panel="extras" hidden>
+          <div class="section-head">
+            <h2>Extras</h2>
+            <p>Complementos. Toca la imagen para agregar.</p>
+          </div>
+          <div class="menu-scroll">
+          <button type="button" class="menu-arrow menu-arrow-left" aria-label="Platillos anteriores">‹</button>
+          <ul class="menu-list">
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="salsa-extra" data-name="Salsa extra" data-price="15" aria-label="Agregar Salsa extra, 15 pesos">
+                <span class="dish-name">Salsa extra</span>
+                <img class="item-photo" src="/images/menu/salsa-extra.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$15</span>
+              </button>
+            </li>
+            <li class="menu-item">
+              <button type="button" class="btn-add menu-dish" data-id="palillos" data-name="Palillos" data-price="10" aria-label="Agregar Palillos, 10 pesos">
+                <span class="dish-name">Palillos</span>
+                <img class="item-photo" src="/images/menu/palillos.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$10</span>
+              </button>
+            </li>
+          </ul>
+          <button type="button" class="menu-arrow menu-arrow-right" aria-label="Platillos siguientes">›</button>
+        </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>Matilda Kitchen · Menú del día</p>
+    </footer>
+
+    <div id="cart-root"></div>
+    <script src="/mesa.js"></script>
+    <script src="/cart-ui.js"></script>
+    <script src="/cart.js"></script>
+    <script src="/categories.js"></script>
+  </body>
+</html>

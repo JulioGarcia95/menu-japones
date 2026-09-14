@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin — Matilda Kitchen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Sora:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="cocina-body">
+    <div class="page-bg" aria-hidden="true"></div>
+
+    <nav class="site-nav cocina-nav" aria-label="Administración">
+      <a class="site-nav-btn" href="/cocina.html">Cocina</a>
+      <a class="site-nav-btn" href="/clientes.html">Clientes</a>
+      <a class="site-nav-btn is-active" href="/admin.html">Admin</a>
+    </nav>
+
+    <header class="cocina-header">
+      <div>
+        <p class="cocina-kicker">Administración</p>
+        <h1>Historial del negocio</h1>
+        <p class="cocina-sub">
+          Cuentas finalizadas por día: tiempo, cliente, pedidos, total y método
+          de pago.
+        </p>
+      </div>
+    </header>
+
+    <main class="cocina-main">
+      <section class="admin-day" aria-labelledby="admin-day-title">
+        <div class="admin-toolbar">
+          <div>
+            <h2 id="admin-day-title">Por día</h2>
+            <p class="admin-hint">Solo pedidos ya cobrados y finalizados.</p>
+          </div>
+          <label class="admin-date-field">
+            <span>Fecha</span>
+            <input type="date" id="admin-fecha" />
+          </label>
+        </div>
+
+        <p class="cocina-status" id="admin-status">Cargando…</p>
+
+        <div class="historial-sheet admin-sheet" id="admin-sheet" hidden>
+          <div class="historial-table-wrap">
+            <table class="historial-table admin-table">
+              <thead>
+                <tr>
+                  <th>Tiempo</th>
+                  <th>Cliente</th>
+                  <th>Pedidos</th>
+                  <th class="col-num">Cuenta</th>
+                  <th>Método de pago</th>
+                </tr>
+              </thead>
+              <tbody id="admin-body"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" class="historial-sum-label">Total del día</td>
+                  <td class="col-num" id="admin-total">$0</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <p class="historial-meta" id="admin-meta"></p>
+        </div>
+      </section>
+    </main>
+
+    <script src="/admin.js"></script>
+  </body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clientes — Matilda Kitchen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Sora:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="cocina-body">
+    <div class="page-bg" aria-hidden="true"></div>
+
+    <nav class="site-nav cocina-nav" aria-label="Cocina">
+      <a class="site-nav-btn" href="/cocina.html">Cocina</a>
+      <a class="site-nav-btn is-active" href="/clientes.html">Clientes</a>
+      <a class="site-nav-btn" href="/admin.html">Admin</a>
+    </nav>
+
+    <header class="cocina-header">
+      <div>
+        <p class="cocina-kicker">Área de cocina</p>
+        <h1>Mesas / clientes</h1>
+        <p class="cocina-sub">
+          Cuando un cliente pide la cuenta, cobra eligiendo el método de pago y
+          reabre la mesa para nuevos comensales.
+        </p>
+      </div>
+      <div class="cocina-live">
+        <span class="cocina-dot" aria-hidden="true"></span>
+        <span id="clientes-live-text">En vivo</span>
+      </div>
+    </header>
+
+    <main class="cocina-main">
+      <section class="qr-section" aria-labelledby="qr-title">
+        <div class="section-head">
+          <h2 id="qr-title">Códigos QR por mesa</h2>
+          <p>
+            Imprime cada QR y pégalo en su mesa. El cliente escanea y entra al
+            menú ya asignado a esa mesa.
+          </p>
+        </div>
+        <p class="qr-base" id="qr-base">Detectando URL de la red…</p>
+        <div class="qr-grid" id="qr-grid"></div>
+      </section>
+
+      <p class="cocina-status" id="clientes-status">Cargando mesas…</p>
+      <div class="mesas-grid" id="mesas-grid"></div>
+    </main>
+
+    <div class="pago-modal" id="pago-modal" hidden>
+      <div class="pago-modal-backdrop" id="pago-modal-backdrop"></div>
+      <div
+        class="pago-modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pago-modal-title"
+      >
+        <p class="pago-modal-kicker">Cobrar cuenta</p>
+        <h2 id="pago-modal-title">Método de pago</h2>
+        <p class="pago-modal-mesa" id="pago-modal-mesa">Mesa01</p>
+        <p class="pago-modal-text">
+          Elige cómo pagó el cliente. La cuenta queda en el historial de Admin y
+          la mesa se libera.
+        </p>
+        <div
+          class="pago-metodos"
+          id="pago-metodos"
+          role="group"
+          aria-label="Método de pago"
+        >
+          <button
+            type="button"
+            class="pago-metodo is-active"
+            data-metodo="efectivo"
+            aria-pressed="true"
+          >
+            Efectivo
+          </button>
+          <button
+            type="button"
+            class="pago-metodo"
+            data-metodo="tarjeta"
+            aria-pressed="false"
+          >
+            Tarjeta
+          </button>
+          <button
+            type="button"
+            class="pago-metodo"
+            data-metodo="transferencia"
+            aria-pressed="false"
+          >
+            Transferencia
+          </button>
+        </div>
+        <div class="pago-modal-actions">
+          <button type="button" class="pago-modal-cancel" id="pago-modal-cancel">
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="pago-modal-confirm"
+            id="pago-modal-confirm"
+          >
+            Confirmar cobro
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/clientes.js"></script>
+  </body>
+</html>

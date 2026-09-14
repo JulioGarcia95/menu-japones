@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cocina — Matilda Kitchen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Sora:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="cocina-body">
+    <div class="page-bg" aria-hidden="true"></div>
+
+    <nav class="site-nav cocina-nav" aria-label="Cocina">
+      <a class="site-nav-btn is-active" href="/cocina.html">Cocina</a>
+      <a class="site-nav-btn" href="/clientes.html">Clientes</a>
+      <a class="site-nav-btn" href="/admin.html">Admin</a>
+    </nav>
+
+    <header class="cocina-header">
+      <div>
+        <p class="cocina-kicker">Área de cocina</p>
+        <h1>Pedidos en vivo</h1>
+        <p class="cocina-sub">Se actualiza solo cuando llega un pedido nuevo.</p>
+      </div>
+      <div class="cocina-live">
+        <span class="cocina-dot" aria-hidden="true"></span>
+        <span id="cocina-live-text">En vivo</span>
+        <span id="cocina-count" class="cocina-count">0 pendientes</span>
+        <button type="button" class="cocina-sound-btn" id="cocina-sound-btn">
+          Probar sonido
+        </button>
+      </div>
+    </header>
+
+    <main class="cocina-main">
+      <p class="cocina-status" id="cocina-status">Cargando pedidos…</p>
+      <div class="cocina-grid" id="cocina-grid"></div>
+    </main>
+
+    <script src="/cocina.js"></script>
+  </body>
+</html>

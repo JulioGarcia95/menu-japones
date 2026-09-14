@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pagar cuenta — Matilda Kitchen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Sora:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-bg" aria-hidden="true"></div>
+
+    <nav class="site-nav" aria-label="Secciones">
+      <a class="site-nav-btn" href="/">Menú</a>
+      <a class="site-nav-btn" href="/historial.html">Historial</a>
+      <a class="site-nav-btn is-active" href="/pagar.html">Pagar cuenta</a>
+    </nav>
+
+    <section class="pagar-page">
+      <div class="section-head">
+        <h2>Pagar cuenta</h2>
+        <p>Resumen de lo consumido en tu mesa.</p>
+      </div>
+
+      <p class="mesa-fija pagar-mesa" id="pagar-mesa">Mesa01</p>
+      <p class="pagar-status" id="pagar-status">Cargando cuenta…</p>
+
+      <div class="pagar-sheet" id="pagar-sheet" hidden>
+        <div class="historial-table-wrap">
+          <table class="historial-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Hora</th>
+                <th>Pedido</th>
+                <th>Estado</th>
+                <th class="col-num">Total</th>
+              </tr>
+            </thead>
+            <tbody id="pagar-body"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4" class="historial-sum-label">Total a pagar</td>
+                <td class="col-num" id="pagar-total">$0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <button type="button" class="btn-pagar" id="btn-pagar">
+          Confirmar pago
+        </button>
+        <p class="pagar-hint" id="pagar-hint"></p>
+      </div>
+
+      <div class="pagar-resultado" id="pagar-resultado" hidden>
+        <div class="pagar-aviso">
+          <p class="pagar-aviso-kicker">Cuenta solicitada</p>
+          <h3>Pase a caja o espere en su mesa</h3>
+          <p>
+            Para realizar el pago, pase a caja o espere en la mesa. Un mesero
+            puede ayudarle a completar el cobro.
+          </p>
+          <p class="pagar-aviso-note">
+            Ya no se pueden ordenar más platillos en esta mesa.
+          </p>
+        </div>
+
+        <div class="section-head">
+          <h2>Historial de su pedido</h2>
+          <p>Detalle de lo consumido.</p>
+        </div>
+
+        <div class="historial-table-wrap">
+          <table class="historial-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Hora</th>
+                <th>Pedido</th>
+                <th>Estado</th>
+                <th class="col-num">Total</th>
+              </tr>
+            </thead>
+            <tbody id="pagar-resultado-body"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4" class="historial-sum-label">Total a pagar</td>
+                <td class="col-num" id="pagar-resultado-total">$0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <div class="pagar-warn" id="pagar-warn" hidden>
+      <div class="pagar-warn-backdrop" id="pagar-warn-backdrop"></div>
+      <div
+        class="pagar-warn-card"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="pagar-warn-title"
+        aria-describedby="pagar-warn-text"
+      >
+        <p class="pagar-warn-kicker">Advertencia</p>
+        <h2 id="pagar-warn-title">¿Confirmar pago de la cuenta?</h2>
+        <p id="pagar-warn-text" class="pagar-warn-text">
+          Una vez aceptado, ya no se podrá ordenar más comida en esta mesa.
+        </p>
+        <div class="pagar-warn-actions">
+          <button type="button" class="pagar-warn-reject" id="pagar-warn-reject">
+            Rechazar
+          </button>
+          <button type="button" class="pagar-warn-accept" id="pagar-warn-accept">
+            Aceptar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="cart-root"></div>
+    <script src="/mesa.js"></script>
+    <script src="/cart-ui.js"></script>
+    <script src="/cart.js"></script>
+    <script src="/pagar.js"></script>
+  </body>
+</html>

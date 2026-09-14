@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Entradas — Matilda Kitchen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Sora:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-bg" aria-hidden="true"></div>
+    <nav class="site-nav" aria-label="Secciones">
+      <a class="site-nav-btn is-active" href="/">Menú</a>
+      <a class="site-nav-btn" href="/historial.html">Historial</a>
+    </nav>
+
+    <header class="category-hero">
+      <a class="back-link" href="/">← Todas las categorías</a>
+      <h1>Entradas</h1>
+      <p>Para abrir el apetito.</p>
+    </header>
+
+    <main>
+      <section class="menu-section menu-section-solo">
+        <ul class="menu-list">
+          <li class="menu-item">
+            <div class="item-copy">
+              <h3>Gyoza</h3>
+              <p>Empanadillas crujientes por fuera, jugosas por dentro.</p>
+            </div>
+            <div class="item-actions">
+              <p class="price">$85</p>
+              <button type="button" class="btn-add" data-id="gyoza" data-name="Gyoza" data-price="85">Agregar</button>
+            </div>
+          </li>
+          <li class="menu-item">
+            <div class="item-copy">
+              <h3>Edamame</h3>
+              <p>Frijoles de soya al vapor con sal marina.</p>
+            </div>
+            <div class="item-actions">
+              <p class="price">$55</p>
+              <button type="button" class="btn-add" data-id="edamame" data-name="Edamame" data-price="55">Agregar</button>
+            </div>
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="footer"><p>Matilda Kitchen · Entradas</p></footer>
+    <div id="cart-root"></div>
+    <script src="/cart-ui.js"></script>
+    <script src="/cart.js"></script>
+  </body>
+</html>

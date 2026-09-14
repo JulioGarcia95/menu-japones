@@ -1,0 +1,202 @@
+[
+  {
+    "id": "cuenta-1789414328357-775",
+    "mesa": "Mesa01",
+    "cliente": "Mesa01",
+    "createdAt": "2026-09-14T19:32:08.357Z",
+    "closedAt": "2026-09-14T19:32:08.357Z",
+    "metodoPago": "efectivo",
+    "metodoPagoLabel": "Efectivo",
+    "total": 110,
+    "pedidos": [
+      {
+        "id": "mu1n0uraq671",
+        "createdAt": "2026-09-14T19:30:17.398Z",
+        "status": "entregado",
+        "items": [
+          {
+            "id": "ramen",
+            "name": "Ramen",
+            "price": 110,
+            "qty": 1
+          }
+        ],
+        "total": 110
+      }
+    ]
+  },
+  {
+    "id": "cuenta-1789414331146-131",
+    "mesa": "Mesa02",
+    "cliente": "Mesa02",
+    "createdAt": "2026-09-14T19:32:11.146Z",
+    "closedAt": "2026-09-14T19:32:11.146Z",
+    "metodoPago": "tarjeta",
+    "metodoPagoLabel": "Tarjeta",
+    "total": 120,
+    "pedidos": [
+      {
+        "id": "mu1n0sclnpi8",
+        "createdAt": "2026-09-14T19:30:14.277Z",
+        "status": "entregado",
+        "items": [
+          {
+            "id": "sushi",
+            "name": "Sushi",
+            "price": 120,
+            "qty": 1
+          }
+        ],
+        "total": 120
+      }
+    ]
+  },
+  {
+    "id": "cuenta-1789414497353-722",
+    "mesa": "Mesa01",
+    "cliente": "Mesa01",
+    "createdAt": "2026-09-14T19:34:57.353Z",
+    "closedAt": "2026-09-14T19:34:57.353Z",
+    "metodoPago": "efectivo",
+    "metodoPagoLabel": "Efectivo",
+    "total": 830,
+    "pedidos": [
+      {
+        "id": "mu1n64x6y5ce",
+        "createdAt": "2026-09-14T19:34:23.850Z",
+        "status": "entregado",
+        "items": [
+          {
+            "id": "sushi",
+            "name": "Sushi",
+            "price": 120,
+            "qty": 2
+          },
+          {
+            "id": "ramen",
+            "name": "Ramen",
+            "price": 110,
+            "qty": 2
+          },
+          {
+            "id": "gyoza",
+            "name": "Gyoza",
+            "price": 85,
+            "qty": 1
+          },
+          {
+            "id": "edamame",
+            "name": "Edamame",
+            "price": 55,
+            "qty": 1
+          },
+          {
+            "id": "teriyaki",
+            "name": "Pollo teriyaki",
+            "price": 130,
+            "qty": 1
+          },
+          {
+            "id": "agua",
+            "name": "Agua",
+            "price": 25,
+            "qty": 1
+          },
+          {
+            "id": "coca",
+            "name": "Coca",
+            "price": 35,
+            "qty": 1
+          },
+          {
+            "id": "te-verde",
+            "name": "Té verde",
+            "price": 40,
+            "qty": 1
+          }
+        ],
+        "total": 830
+      }
+    ]
+  },
+  {
+    "id": "cuenta-1789416179283-583",
+    "mesa": "Mesa01",
+    "cliente": "Mesa01",
+    "createdAt": "2026-09-14T20:02:59.283Z",
+    "closedAt": "2026-09-14T20:02:59.283Z",
+    "metodoPago": "tarjeta",
+    "metodoPagoLabel": "Tarjeta",
+    "total": 175,
+    "pedidos": [
+      {
+        "id": "mu1o1zx39osv",
+        "createdAt": "2026-09-14T19:59:10.359Z",
+        "status": "entregado",
+        "items": [
+          {
+            "id": "edamame",
+            "name": "Edamame",
+            "price": 55,
+            "qty": 1
+          }
+        ],
+        "total": 55
+      },
+      {
+        "id": "mu1o21zhbtlp",
+        "createdAt": "2026-09-14T19:59:13.037Z",
+        "status": "entregado",
+        "items": [
+          {
+            "id": "sushi",
+            "name": "Sushi",
+            "price": 120,
+            "qty": 1
+          }
+        ],
+        "total": 120
+      }
+    ]
+  },
+  {
+    "id": "cuenta-1789416820463-803",
+    "mesa": "Mesa01",
+    "cliente": "Mesa01",
+    "createdAt": "2026-09-14T20:13:40.463Z",
+    "closedAt": "2026-09-14T20:13:40.463Z",
+    "metodoPago": "efectivo",
+    "metodoPagoLabel": "Efectivo",
+    "total": 235,
+    "pedidos": [
+      {
+        "id": "mu1of4530mhz",
+        "createdAt": "2026-09-14T20:09:22.359Z",
+        "status": "entregado",
+        "items": [
+          {
+            "id": "ramen|alga:sin|cerdo:doble|huevo:normal",
+            "name": "Ramen (Sin alga, Doble, Normal)",
+            "price": 110,
+            "qty": 1
+          }
+        ],
+        "total": 110
+      },
+      {
+        "id": "mu1ojf72l5qn",
+        "createdAt": "2026-09-14T20:12:43.310Z",
+        "status": "pendiente",
+        "items": [
+          {
+            "id": "ramen|alga:sin|cerdo:doble|huevo:normal",
+            "name": "Ramen (sin alga, carne de cerdo doble)",
+            "price": 125,
+            "qty": 1
+          }
+        ],
+        "total": 125
+      }
+    ]
+  }
+]
