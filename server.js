@@ -86,13 +86,90 @@ var METODOS_PAGO = {
   efectivo: 'Efectivo',
   tarjeta: 'Tarjeta',
   transferencia: 'Transferencia',
+  mercadopago: 'Mercado Pago',
 };
 
 function normalizarMetodoPago(valor) {
   var key = String(valor || '')
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/\s+/g, '');
+  if (key === 'mercado_pago' || key === 'mp') key = 'mercadopago';
   return METODOS_PAGO[key] ? key : null;
+}
+
+function mpAccessToken() {
+  return String(process.env.MERCADOPAGO_ACCESS_TOKEN || '').trim();
+}
+
+function mpEsModoPrueba() {
+  var token = mpAccessToken();
+  if (!token) return false;
+  if (String(process.env.MERCADOPAGO_TEST_MODE || '').toLowerCase() === 'true') {
+    return true;
+  }
+  return token.indexOf('TEST') === 0;
+}
+
+function finalizarCuentaMesa(mesa, metodoPago) {
+  var pedidos = leerPedidos();
+  var ahora = new Date().toISOString();
+  var deMesa = pedidos.filter(function (p) {
+    return p.mesa === mesa && !p.paid;
+  });
+
+  var total = 0;
+  if (deMesa.length) {
+    total = deMesa.reduce(function (sum, p) {
+      return sum + (Number(p.total) || 0);
+    }, 0);
+
+    var cuenta = {
+      id: 'cuenta-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+      mesa: mesa,
+      cliente: mesa,
+      createdAt: ahora,
+      closedAt: ahora,
+      metodoPago: metodoPago,
+      metodoPagoLabel: METODOS_PAGO[metodoPago],
+      total: total,
+      pedidos: deMesa.map(function (p) {
+        return {
+          id: p.id,
+          createdAt: p.createdAt,
+          status: normalizarEstado(p.status),
+          items: p.items || [],
+          total: Number(p.total) || 0,
+        };
+      }),
+    };
+
+    var cuentas = leerCuentas();
+    cuentas.push(cuenta);
+    guardarCuentas(cuentas);
+  }
+
+  pedidos = pedidos.filter(function (p) {
+    return p.mesa !== mesa;
+  });
+  guardarPedidos(pedidos);
+
+  var mesas = leerMesas();
+  mesas[mesa] = {
+    orderingClosed: false,
+    reopenedAt: ahora,
+    paidWith: metodoPago,
+    paidAt: ahora,
+  };
+  guardarMesas(mesas);
+
+  return {
+    mesa: mesa,
+    metodoPago: metodoPago,
+    pedidosCerrados: deMesa.length,
+    total: total,
+    orderingClosed: false,
+  };
 }
 
 function fechaLocalISO(iso) {
@@ -475,71 +552,230 @@ app.post('/api/mesas/:mesa/reabrir', function (req, res) {
   if (!metodoPago) {
     return res.status(400).json({
       ok: false,
-      error: 'Indica el método de pago (efectivo, tarjeta o transferencia)',
+      error: 'Indica el método de pago (efectivo, tarjeta, transferencia o mercadopago)',
     });
   }
 
-  var pedidos = leerPedidos();
-  var ahora = new Date().toISOString();
-  var deMesa = pedidos.filter(function (p) {
-    return p.mesa === mesa && !p.paid;
-  });
-
-  if (deMesa.length) {
-    var total = deMesa.reduce(function (sum, p) {
-      return sum + (Number(p.total) || 0);
-    }, 0);
-
-    var cuenta = {
-      id: 'cuenta-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
-      mesa: mesa,
-      cliente: mesa,
-      createdAt: ahora,
-      closedAt: ahora,
-      metodoPago: metodoPago,
-      metodoPagoLabel: METODOS_PAGO[metodoPago],
-      total: total,
-      pedidos: deMesa.map(function (p) {
-        return {
-          id: p.id,
-          createdAt: p.createdAt,
-          status: normalizarEstado(p.status),
-          items: p.items || [],
-          total: Number(p.total) || 0,
-        };
-      }),
-    };
-
-    var cuentas = leerCuentas();
-    cuentas.push(cuenta);
-    guardarCuentas(cuentas);
-  }
-
-  pedidos = pedidos.filter(function (p) {
-    return p.mesa !== mesa;
-  });
-  guardarPedidos(pedidos);
-
-  var mesas = leerMesas();
-  mesas[mesa] = {
-    orderingClosed: false,
-    reopenedAt: ahora,
-  };
-  guardarMesas(mesas);
+  var resultado = finalizarCuentaMesa(mesa, metodoPago);
 
   console.log('--- Mesa reabierta ---');
-  console.log('Mesa:', mesa);
-  console.log('Método:', METODOS_PAGO[metodoPago]);
-  console.log('Pedidos archivados:', deMesa.length);
+  console.log('Mesa:', resultado.mesa);
+  console.log('Método:', METODOS_PAGO[resultado.metodoPago]);
+  console.log('Pedidos archivados:', resultado.pedidosCerrados);
   console.log('--------------------');
 
   res.json({
     ok: true,
-    mesa: mesa,
-    metodoPago: metodoPago,
-    pedidosCerrados: deMesa.length,
-    pedidosEliminados: deMesa.length,
+    mesa: resultado.mesa,
+    metodoPago: resultado.metodoPago,
+    pedidosCerrados: resultado.pedidosCerrados,
+    pedidosEliminados: resultado.pedidosCerrados,
     orderingClosed: false,
+  });
+});
+
+app.get('/api/mercadopago/status', function (req, res) {
+  var token = mpAccessToken();
+  res.json({
+    ok: true,
+    configured: Boolean(token),
+    testMode: mpEsModoPrueba(),
+  });
+});
+
+app.post('/api/cuenta/mercadopago', function (req, res) {
+  var token = mpAccessToken();
+  if (!token) {
+    return res.status(503).json({
+      ok: false,
+      error:
+        'Falta MERCADOPAGO_ACCESS_TOKEN. Agrégalo en Render → Environment (token de prueba).',
+    });
+  }
+
+  var mesa = normalizarMesa((req.body && req.body.mesa) || 'Mesa01');
+  if (!mesa) {
+    return res.status(400).json({ ok: false, error: 'Mesa inválida' });
+  }
+
+  var pedidos = leerPedidos()
+    .map(function (p) {
+      return Object.assign({}, p, {
+        status: normalizarEstado(p.status),
+        paid: Boolean(p.paid),
+      });
+    })
+    .filter(function (p) {
+      return p.mesa === mesa && !p.paid;
+    });
+
+  if (!pedidos.length) {
+    return res.status(400).json({
+      ok: false,
+      error: 'No hay pedidos pendientes de pago en esta mesa',
+    });
+  }
+
+  var total = pedidos.reduce(function (sum, p) {
+    return sum + (Number(p.total) || 0);
+  }, 0);
+
+  if (total <= 0) {
+    return res.status(400).json({ ok: false, error: 'El total debe ser mayor a 0' });
+  }
+
+  // Cierra pedidos nuevos mientras paga
+  var mesas = leerMesas();
+  mesas[mesa] = {
+    orderingClosed: true,
+    closedAt: new Date().toISOString(),
+    total: total,
+    mpPending: true,
+  };
+  guardarMesas(mesas);
+
+  var base = urlPublica(req);
+  var preference = {
+    items: [
+      {
+        id: 'cuenta-' + mesa,
+        title: 'Cuenta ' + mesa + ' — Matilda Kitchen',
+        description: pedidos.length + ' pedido(s)',
+        quantity: 1,
+        currency_id: 'MXN',
+        unit_price: Number(total),
+      },
+    ],
+    external_reference: mesa,
+    metadata: { mesa: mesa },
+    notification_url: base + '/api/webhooks/mercadopago',
+    back_urls: {
+      success: base + '/pagar.html?mp=success&mesa=' + encodeURIComponent(mesa),
+      failure: base + '/pagar.html?mp=failure&mesa=' + encodeURIComponent(mesa),
+      pending: base + '/pagar.html?mp=pending&mesa=' + encodeURIComponent(mesa),
+    },
+    auto_return: 'approved',
+    statement_descriptor: 'MATILDA',
+  };
+
+  fetch('https://api.mercadopago.com/checkout/preferences', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(preference),
+  })
+    .then(function (mpRes) {
+      return mpRes.json().then(function (data) {
+        if (!mpRes.ok) {
+          var msg =
+            (data && data.message) ||
+            (data && data.error) ||
+            'No se pudo crear el pago en Mercado Pago';
+          throw new Error(msg);
+        }
+        return data;
+      });
+    })
+    .then(function (data) {
+      // Preferir sandbox si existe (credenciales de prueba)
+      var checkoutUrl = data.sandbox_init_point || data.init_point;
+      if (mpEsModoPrueba() && data.sandbox_init_point) {
+        checkoutUrl = data.sandbox_init_point;
+      }
+
+      console.log('--- MP preferencia ---');
+      console.log('Mesa:', mesa);
+      console.log('Total: $' + total);
+      console.log('Preference:', data.id);
+      console.log('Test mode:', mpEsModoPrueba());
+      console.log('--------------------');
+
+      res.json({
+        ok: true,
+        mesa: mesa,
+        total: total,
+        preferenceId: data.id,
+        checkoutUrl: checkoutUrl,
+        testMode: mpEsModoPrueba(),
+      });
+    })
+    .catch(function (err) {
+      res.status(502).json({
+        ok: false,
+        error: err.message || 'Error al contactar Mercado Pago',
+      });
+    });
+});
+
+function procesarPagoMercadoPago(paymentId) {
+  var token = mpAccessToken();
+  if (!token || !paymentId) {
+    return Promise.resolve({ ok: false, reason: 'sin token o id' });
+  }
+
+  return fetch('https://api.mercadopago.com/v1/payments/' + paymentId, {
+    headers: { Authorization: 'Bearer ' + token },
+  })
+    .then(function (mpRes) {
+      return mpRes.json().then(function (data) {
+        if (!mpRes.ok) throw new Error('No se pudo leer el pago');
+        return data;
+      });
+    })
+    .then(function (pago) {
+      if (pago.status !== 'approved') {
+        return { ok: false, reason: 'status ' + pago.status };
+      }
+
+      var mesa = normalizarMesa(
+        pago.external_reference ||
+          (pago.metadata && (pago.metadata.mesa || pago.metadata.Mesa))
+      );
+      if (!mesa) {
+        return { ok: false, reason: 'sin mesa en external_reference' };
+      }
+
+      var resultado = finalizarCuentaMesa(mesa, 'mercadopago');
+      console.log('--- MP pago aprobado ---');
+      console.log('Payment:', paymentId);
+      console.log('Mesa:', mesa);
+      console.log('Total MP:', pago.transaction_amount);
+      console.log('--------------------');
+      return { ok: true, mesa: mesa, resultado: resultado };
+    });
+}
+
+app.post('/api/webhooks/mercadopago', function (req, res) {
+  var paymentId =
+    (req.body && req.body.data && req.body.data.id) ||
+    req.query.id ||
+    (req.body && req.body.id);
+
+  var topic = String(
+    (req.body && req.body.type) || req.query.type || req.query.topic || ''
+  ).toLowerCase();
+
+  // Responder rápido a MP; procesar después
+  res.status(200).json({ ok: true });
+
+  if (topic && topic.indexOf('payment') === -1 && !paymentId) return;
+  if (!paymentId) return;
+
+  procesarPagoMercadoPago(paymentId).catch(function (err) {
+    console.error('Webhook MP error:', err.message || err);
+  });
+});
+
+app.get('/api/webhooks/mercadopago', function (req, res) {
+  var paymentId = req.query.id;
+  var topic = String(req.query.topic || req.query.type || '').toLowerCase();
+  res.status(200).send('ok');
+
+  if (topic.indexOf('payment') === -1 || !paymentId) return;
+  procesarPagoMercadoPago(paymentId).catch(function (err) {
+    console.error('Webhook MP GET error:', err.message || err);
   });
 });
 

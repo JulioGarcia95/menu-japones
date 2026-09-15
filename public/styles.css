@@ -920,6 +920,39 @@ body.success-open {
   cursor: not-allowed;
 }
 
+.btn-pagar-mp {
+  appearance: none;
+  width: 100%;
+  margin-top: 0.65rem;
+  border: 1px solid #009ee3;
+  background: #009ee3;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0.95rem 1rem;
+  cursor: pointer;
+}
+
+.btn-pagar-mp:hover,
+.btn-pagar-mp:focus-visible {
+  background: #008bd1;
+  outline: none;
+}
+
+.btn-pagar-mp:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.pagar-mp-note {
+  margin: 0.75rem 0 0;
+  color: #f0d36a;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
 .pagar-hint {
   margin: 0.75rem 0 0;
   color: var(--mute);
