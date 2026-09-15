@@ -679,10 +679,15 @@ app.post('/api/cuenta/mercadopago', function (req, res) {
       });
     })
     .then(function (data) {
-      // Preferir sandbox si existe (credenciales de prueba)
-      var checkoutUrl = data.sandbox_init_point || data.init_point;
-      if (mpEsModoPrueba() && data.sandbox_init_point) {
-        checkoutUrl = data.sandbox_init_point;
+      // Credenciales nuevas (APP_USR de prueba) → init_point
+      // Credenciales viejas (TEST-...) → sandbox_init_point
+      var checkoutUrl;
+      if (String(token).indexOf('TEST') === 0) {
+        checkoutUrl = data.sandbox_init_point || data.init_point;
+      } else {
+        // APP_USR de "Credenciales de prueba": NO usar sandbox_init_point
+        // (provoca "una de las partes es de prueba")
+        checkoutUrl = data.init_point || data.sandbox_init_point;
       }
 
       console.log('--- MP preferencia ---');
@@ -690,6 +695,7 @@ app.post('/api/cuenta/mercadopago', function (req, res) {
       console.log('Total: $' + total);
       console.log('Preference:', data.id);
       console.log('Test mode:', mpEsModoPrueba());
+      console.log('Checkout:', checkoutUrl ? checkoutUrl.slice(0, 60) + '...' : 'none');
       console.log('--------------------');
 
       res.json({
