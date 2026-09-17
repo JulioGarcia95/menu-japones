@@ -65,13 +65,18 @@
       <div class="pagar-resultado" id="pagar-resultado" hidden>
         <div class="pagar-aviso">
           <p class="pagar-aviso-kicker">Cuenta solicitada</p>
-          <h3>Pase a caja o espere en su mesa</h3>
+          <h3>Muestra este QR en caja</h3>
           <p>
-            Para realizar el pago, pase a caja o espere en la mesa. Un mesero
-            puede ayudarle a completar el cobro.
+            Acércate a la caja y muestra el código. Ya no se pueden ordenar más
+            platillos en esta mesa.
           </p>
+          <div class="pagar-qr-wrap" id="pagar-qr-wrap" hidden>
+            <img class="pagar-qr" id="pagar-qr" alt="Código QR para pagar en caja" width="280" height="280" />
+            <p class="pagar-qr-mesa" id="pagar-qr-mesa"></p>
+            <p class="pagar-qr-total" id="pagar-qr-total"></p>
+          </div>
           <p class="pagar-aviso-note">
-            Ya no se pueden ordenar más platillos en esta mesa.
+            También puedes pagar desde el celular con Mercado Pago.
           </p>
           <button type="button" class="btn-pagar-mp" id="btn-pagar-mp-resultado">
             Pagar ahora con Mercado Pago

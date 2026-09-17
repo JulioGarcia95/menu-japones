@@ -945,12 +945,91 @@ body.success-open {
   cursor: wait;
 }
 
+.pagar-qr-wrap {
+  margin: 1.25rem 0;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  text-align: center;
+}
+
+.pagar-qr {
+  display: block;
+  width: min(100%, 280px);
+  height: auto;
+  margin: 0 auto 0.75rem;
+}
+
+.pagar-qr-mesa {
+  margin: 0;
+  color: #111;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.pagar-qr-total {
+  margin: 0.25rem 0 0;
+  color: #333;
+  font-weight: 600;
+}
+
 .pagar-mp-note {
   margin: 0.75rem 0 0;
   color: #f0d36a;
   font-size: 0.88rem;
   line-height: 1.4;
   text-align: center;
+}
+
+.caja-reader {
+  width: min(100%, 28rem);
+  margin: 0 auto 1rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #000;
+  min-height: 14rem;
+}
+
+.caja-hint {
+  text-align: center;
+  color: var(--mute);
+  margin: 0 0 1.25rem;
+}
+
+.caja-manual {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 28rem;
+  margin: 0 auto;
+}
+
+.caja-manual label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--mute);
+  font-size: 0.85rem;
+}
+
+.caja-manual select,
+.caja-manual input {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.caja-total-big {
+  margin: 0.35rem 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 700;
+}
+
+.caja-cuenta .mesa-reabrir {
+  margin-top: 0.75rem;
 }
 
 .pagar-hint {

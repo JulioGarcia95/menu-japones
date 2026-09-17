@@ -357,12 +357,49 @@ app.get('/api/cuenta', function (req, res) {
     return sum + (Number(p.total) || 0);
   }, 0);
 
+  var info = leerMesas()[mesa] || {};
+  var closed = mesaCerrada(mesa);
+  var payToken = info.payToken || null;
+
+  // Si la cuenta ya estaba cerrada sin token (datos viejos), genera uno
+  if (closed && !payToken && pedidos.length) {
+    payToken =
+      'pay-' +
+      Date.now().toString(36) +
+      '-' +
+      Math.floor(Math.random() * 1e6).toString(36);
+    info.payToken = payToken;
+    var mesasFix = leerMesas();
+    mesasFix[mesa] = Object.assign({}, info, { payToken: payToken });
+    guardarMesas(mesasFix);
+  }
+
+  var base = urlPublica(req);
+  var cajaUrl = null;
+  var qrUrl = null;
+  if (closed && payToken) {
+    cajaUrl =
+      base +
+      '/caja.html?mesa=' +
+      encodeURIComponent(mesa) +
+      '&t=' +
+      encodeURIComponent(payToken);
+    qrUrl =
+      '/api/cuenta/qr.png?mesa=' +
+      encodeURIComponent(mesa) +
+      '&t=' +
+      encodeURIComponent(payToken);
+  }
+
   res.json({
     ok: true,
     mesa: mesa,
     pedidos: pedidos,
     total: total,
-    orderingClosed: mesaCerrada(mesa),
+    orderingClosed: closed,
+    payToken: payToken,
+    cajaUrl: cajaUrl,
+    qrUrl: qrUrl,
   });
 });
 
@@ -394,18 +431,34 @@ app.post('/api/cuenta/cerrar', function (req, res) {
     return sum + (Number(p.total) || 0);
   }, 0);
 
+  var payToken =
+    'pay-' +
+    Date.now().toString(36) +
+    '-' +
+    Math.floor(Math.random() * 1e6).toString(36);
+
   var mesas = leerMesas();
   mesas[mesa] = {
     orderingClosed: true,
     closedAt: new Date().toISOString(),
     total: total,
+    payToken: payToken,
   };
   guardarMesas(mesas);
+
+  var base = urlPublica(req);
+  var cajaUrl =
+    base +
+    '/caja.html?mesa=' +
+    encodeURIComponent(mesa) +
+    '&t=' +
+    encodeURIComponent(payToken);
 
   console.log('--- Cuenta solicitada ---');
   console.log('Mesa:', mesa);
   console.log('Pedidos:', pedidos.length);
   console.log('Total: $' + total);
+  console.log('Caja QR:', cajaUrl);
   console.log('--------------------');
 
   res.json({
@@ -414,6 +467,99 @@ app.post('/api/cuenta/cerrar', function (req, res) {
     pedidos: pedidos,
     total: total,
     orderingClosed: true,
+    payToken: payToken,
+    cajaUrl: cajaUrl,
+    qrUrl:
+      '/api/cuenta/qr.png?mesa=' +
+      encodeURIComponent(mesa) +
+      '&t=' +
+      encodeURIComponent(payToken),
+  });
+});
+
+app.get('/api/cuenta/qr.png', function (req, res) {
+  var mesa = normalizarMesa(req.query.mesa);
+  var token = String(req.query.t || '').trim();
+  if (!mesa) {
+    return res.status(400).send('Mesa inválida');
+  }
+
+  var info = leerMesas()[mesa] || {};
+  if (info.payToken && token && info.payToken !== token) {
+    return res.status(403).send('Token inválido');
+  }
+
+  var payToken = token || info.payToken;
+  if (!payToken) {
+    return res.status(400).send('No hay QR de pago para esta mesa');
+  }
+
+  var base = urlPublica(req);
+  var cajaUrl =
+    base +
+    '/caja.html?mesa=' +
+    encodeURIComponent(mesa) +
+    '&t=' +
+    encodeURIComponent(payToken);
+
+  QRCode.toBuffer(cajaUrl, {
+    type: 'png',
+    width: 512,
+    margin: 2,
+    errorCorrectionLevel: 'M',
+  })
+    .then(function (buf) {
+      res.setHeader('Cache-Control', 'no-store');
+      res.type('png').send(buf);
+    })
+    .catch(function () {
+      res.status(500).send('No se pudo generar el QR');
+    });
+});
+
+app.get('/api/caja', function (req, res) {
+  var mesa = normalizarMesa(req.query.mesa);
+  var token = String(req.query.t || '').trim();
+  if (!mesa) {
+    return res.status(400).json({ ok: false, error: 'Mesa inválida' });
+  }
+
+  var info = leerMesas()[mesa] || {};
+  if (!info.orderingClosed) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Esta mesa aún no ha solicitado la cuenta',
+    });
+  }
+  if (!info.payToken || info.payToken !== token) {
+    return res.status(403).json({
+      ok: false,
+      error: 'Código QR inválido o vencido. Pide al cliente generar uno nuevo.',
+    });
+  }
+
+  var pedidos = leerPedidos()
+    .map(function (p) {
+      return Object.assign({}, p, {
+        status: normalizarEstado(p.status),
+        paid: Boolean(p.paid),
+      });
+    })
+    .filter(function (p) {
+      return p.mesa === mesa && !p.paid;
+    });
+
+  var total = pedidos.reduce(function (sum, p) {
+    return sum + (Number(p.total) || 0);
+  }, 0);
+
+  res.json({
+    ok: true,
+    mesa: mesa,
+    pedidos: pedidos,
+    total: total,
+    closedAt: info.closedAt || null,
+    payToken: token,
   });
 });
 

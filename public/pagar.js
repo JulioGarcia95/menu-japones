@@ -21,12 +21,28 @@
   var resultado = document.getElementById('pagar-resultado');
   var resultadoBody = document.getElementById('pagar-resultado-body');
   var resultadoTotal = document.getElementById('pagar-resultado-total');
+  var qrWrap = document.getElementById('pagar-qr-wrap');
+  var qrImg = document.getElementById('pagar-qr');
+  var qrMesa = document.getElementById('pagar-qr-mesa');
+  var qrTotal = document.getElementById('pagar-qr-total');
 
   if (!statusEl || !body || !btnPagar) return;
   if (mesaEl) mesaEl.textContent = MESA_FIJA;
 
   function formatMoney(n) {
     return '$' + Number(n || 0);
+  }
+
+  function showQr(data) {
+    if (!qrWrap || !qrImg) return;
+    if (!data || !data.qrUrl) {
+      qrWrap.hidden = true;
+      return;
+    }
+    qrImg.src = data.qrUrl + '&_=' + Date.now();
+    if (qrMesa) qrMesa.textContent = data.mesa || MESA_FIJA;
+    if (qrTotal) qrTotal.textContent = 'Total ' + formatMoney(data.total);
+    qrWrap.hidden = false;
   }
 
   function mpQuery() {
@@ -146,6 +162,7 @@
     resultado.hidden = false;
     fillTable(resultadoBody, data.pedidos || []);
     resultadoTotal.textContent = formatMoney(data.total);
+    showQr(data);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 

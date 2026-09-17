@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Caja — Matilda Kitchen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Sora:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="cocina-body">
+    <div class="page-bg" aria-hidden="true"></div>
+
+    <nav class="site-nav cocina-nav" aria-label="Caja">
+      <a class="site-nav-btn" href="/cocina.html">Cocina</a>
+      <a class="site-nav-btn" href="/clientes.html">Clientes</a>
+      <a class="site-nav-btn is-active" href="/caja.html">Caja</a>
+      <a class="site-nav-btn" href="/admin.html">Admin</a>
+    </nav>
+
+    <header class="cocina-header">
+      <div>
+        <p class="cocina-kicker">Punto de cobro</p>
+        <h1>Caja</h1>
+        <p class="cocina-sub">
+          Escanea el QR del cliente o escribe el código de mesa.
+        </p>
+      </div>
+    </header>
+
+    <main class="cocina-main">
+      <section class="caja-scan" id="caja-scan">
+        <div id="caja-reader" class="caja-reader"></div>
+        <p class="caja-hint" id="caja-scan-status">
+          Apunta la cámara al QR del cliente…
+        </p>
+        <div class="caja-manual">
+          <label>
+            Mesa
+            <select id="caja-mesa-select">
+              <option value="Mesa01">Mesa01</option>
+              <option value="Mesa02">Mesa02</option>
+            </select>
+          </label>
+          <label>
+            Token (opcional)
+            <input type="text" id="caja-token-input" placeholder="Si no escaneas, pega el token" />
+          </label>
+          <button type="button" class="btn-pagar-mp" id="caja-cargar-btn">
+            Cargar cuenta
+          </button>
+        </div>
+      </section>
+
+      <section class="caja-cuenta" id="caja-cuenta" hidden>
+        <p class="mesa-fija pagar-mesa" id="caja-mesa-label">Mesa01</p>
+        <p class="caja-total-big" id="caja-total">$0</p>
+        <p class="cocina-status" id="caja-status"></p>
+
+        <div class="historial-table-wrap">
+          <table class="historial-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Pedido</th>
+                <th class="col-num">Total</th>
+              </tr>
+            </thead>
+            <tbody id="caja-body"></tbody>
+          </table>
+        </div>
+
+        <button type="button" class="btn-pagar-mp" id="caja-pagar-mp">
+          Cobrar con Mercado Pago
+        </button>
+        <button type="button" class="mesa-reabrir" id="caja-nueva">
+          Escanear otra cuenta
+        </button>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="/caja.js"></script>
+  </body>
+</html>
