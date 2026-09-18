@@ -6,9 +6,13 @@
   var CLOSE_KEY =
     (window.MatildaMesa && window.MatildaMesa.closeKey()) ||
     'matilda-mesa-cerrada';
+  var EXPELLED_KEY =
+    (window.MatildaMesa && window.MatildaMesa.expelledKey()) ||
+    'matilda-expulsado-' + MESA_FIJA;
   var cart = loadCart();
   var isOpen = false;
   var orderingClosed = localStorage.getItem(CLOSE_KEY) === '1';
+  var expulsado = localStorage.getItem(EXPELLED_KEY) === '1';
 
   var cartDock = document.getElementById('cart-dock');
   var cartToggle = document.getElementById('cart-toggle');
@@ -120,6 +124,15 @@
 
   function addItem(id, name, price) {
     checkMesaState(function () {
+      if (expulsado) {
+        openCart();
+        cartStatus.textContent =
+          'Esta visita ya terminó. Escanea el QR de la mesa para ordenar de nuevo.';
+        cartEmpty.hidden = true;
+        cartFooter.hidden = false;
+        showExpulsadoBanner();
+        return;
+      }
       if (orderingClosed) {
         openCart();
         cartStatus.textContent =
@@ -287,18 +300,86 @@
     addItem(finalId, finalName, price);
   }
 
+  function getSessionId() {
+    return (window.MatildaMesa && window.MatildaMesa.getSession()) || null;
+  }
+
+  function cuentaUrl() {
+    var url =
+      '/api/cuenta?mesa=' + encodeURIComponent(MESA_FIJA);
+    var ses = getSessionId();
+    if (ses) url += '&sessionId=' + encodeURIComponent(ses);
+    if (window.MatildaMesa && window.MatildaMesa.needsJoin()) {
+      url += '&join=1';
+    }
+    return url;
+  }
+
+  function applyCuentaState(data) {
+    if (!data || !data.ok) return;
+
+    if (data.sessionId && window.MatildaMesa) {
+      if (data.expulsado) {
+        // No adopta la sesión nueva: queda expulsado hasta escanear QR
+      } else {
+        window.MatildaMesa.setSession(data.sessionId);
+      }
+    }
+    if (window.MatildaMesa && window.MatildaMesa.consumeJoin) {
+      window.MatildaMesa.consumeJoin();
+    }
+
+    if (data.expulsado) {
+      expulsado = true;
+      orderingClosed = true;
+      localStorage.setItem(EXPELLED_KEY, '1');
+      localStorage.setItem(CLOSE_KEY, '1');
+      cart = {};
+      saveCart();
+      showExpulsadoBanner();
+      render();
+      return;
+    }
+
+    expulsado = false;
+    localStorage.removeItem(EXPELLED_KEY);
+    hideExpulsadoBanner();
+
+    orderingClosed = Boolean(data.orderingClosed);
+    if (orderingClosed) localStorage.setItem(CLOSE_KEY, '1');
+    else localStorage.removeItem(CLOSE_KEY);
+    render();
+  }
+
+  function showExpulsadoBanner() {
+    var el = document.getElementById('mesa-expulsado-banner');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'mesa-expulsado-banner';
+      el.className = 'mesa-expulsado-banner';
+      el.setAttribute('role', 'alert');
+      el.innerHTML =
+        '<strong>Visita finalizada</strong>' +
+        '<span>La cuenta de esta mesa ya fue pagada. Escanea de nuevo el QR de la mesa para ordenar.</span>';
+      document.body.appendChild(el);
+    }
+    el.hidden = false;
+    document.body.classList.add('mesa-expulsada');
+  }
+
+  function hideExpulsadoBanner() {
+    var el = document.getElementById('mesa-expulsado-banner');
+    if (el) el.hidden = true;
+    document.body.classList.remove('mesa-expulsada');
+  }
+
   function checkMesaState(done) {
-    fetch('/api/cuenta?mesa=' + encodeURIComponent(MESA_FIJA))
+    fetch(cuentaUrl())
       .then(function (res) {
         return res.json();
       })
       .then(function (data) {
-        if (data && data.ok) {
-          orderingClosed = Boolean(data.orderingClosed);
-          if (orderingClosed) localStorage.setItem(CLOSE_KEY, '1');
-          else localStorage.removeItem(CLOSE_KEY);
-          render();
-        }
+        applyCuentaState(data);
         if (done) done();
       })
       .catch(function () {
@@ -387,15 +468,17 @@
     cartBarTotal.textContent = formatMoney(total);
     document.body.classList.toggle('has-cart', count > 0);
     cartToggle.classList.toggle('has-items', count > 0);
-    document.body.classList.toggle('ordering-closed', orderingClosed);
+    var bloqueado = orderingClosed || expulsado;
+    document.body.classList.toggle('ordering-closed', bloqueado);
+    document.body.classList.toggle('mesa-expulsada', expulsado);
     document.querySelectorAll('.btn-add').forEach(function (btn) {
-      btn.disabled = orderingClosed;
+      btn.disabled = bloqueado;
     });
 
     cartEmpty.hidden = items.length > 0;
-    cartFooter.hidden = items.length === 0 && !orderingClosed;
+    cartFooter.hidden = items.length === 0 && !bloqueado;
     cartTotal.textContent = formatMoney(total);
-    if (cartConfirm) cartConfirm.disabled = orderingClosed || items.length === 0;
+    if (cartConfirm) cartConfirm.disabled = bloqueado || items.length === 0;
 
     if (orderingClosed && items.length === 0) {
       cartEmpty.hidden = true;
@@ -510,6 +593,12 @@
   cartConfirm.addEventListener('click', function () {
     var items = cartItems();
     if (!items.length) return;
+    if (expulsado) {
+      cartStatus.textContent =
+        'Esta visita ya terminó. Escanea el QR de la mesa para ordenar de nuevo.';
+      showExpulsadoBanner();
+      return;
+    }
     if (orderingClosed) {
       cartStatus.textContent =
         'La cuenta ya fue solicitada. Ya no se puede ordenar más comida.';
@@ -522,12 +611,19 @@
     fetch('/api/pedidos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: items, total: cartSum(), mesa: MESA_FIJA }),
+      body: JSON.stringify({
+        items: items,
+        total: cartSum(),
+        mesa: MESA_FIJA,
+        sessionId: getSessionId(),
+      }),
     })
       .then(function (res) {
         return res.json().then(function (data) {
           if (!res.ok || !data.ok) {
-            throw new Error(data.error || 'No se pudo confirmar');
+            var err = new Error(data.error || 'No se pudo confirmar');
+            err.expulsado = Boolean(data.expulsado);
+            throw err;
           }
           return data;
         });
@@ -543,7 +639,17 @@
         document.dispatchEvent(new CustomEvent('pedido-confirmado'));
       })
       .catch(function (err) {
-        if (String(err.message || '').indexOf('ya fue solicitada') !== -1) {
+        var msg = String(err.message || '');
+        if (err.expulsado || msg.indexOf('visita ya terminó') !== -1) {
+          expulsado = true;
+          orderingClosed = true;
+          localStorage.setItem(EXPELLED_KEY, '1');
+          localStorage.setItem(CLOSE_KEY, '1');
+          cart = {};
+          saveCart();
+          showExpulsadoBanner();
+          render();
+        } else if (msg.indexOf('ya fue solicitada') !== -1) {
           orderingClosed = true;
           localStorage.setItem(CLOSE_KEY, '1');
           render();
@@ -573,19 +679,12 @@
   cartBackdrop.hidden = true;
   setToggleState(false);
 
-  fetch('/api/cuenta?mesa=' + encodeURIComponent(MESA_FIJA))
-    .then(function (res) {
-      return res.json();
-    })
-    .then(function (data) {
-      if (data && data.ok) {
-        orderingClosed = Boolean(data.orderingClosed);
-        if (orderingClosed) localStorage.setItem(CLOSE_KEY, '1');
-        else localStorage.removeItem(CLOSE_KEY);
-        render();
-      }
-    })
-    .catch(function () {});
+  if (expulsado) showExpulsadoBanner();
+
+  checkMesaState(null);
+  window.setInterval(function () {
+    checkMesaState(null);
+  }, 5000);
 
   render();
 })();

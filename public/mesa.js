@@ -39,8 +39,43 @@
     } catch (e) {}
   }
 
-  var mesaActual = leerDeUrl() || leerGuardada() || 'Mesa01';
+  function sessionStorageKey(mesa) {
+    return 'matilda-session-' + mesa;
+  }
+
+  function leerSesion(mesa) {
+    try {
+      return String(localStorage.getItem(sessionStorageKey(mesa)) || '').trim() || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function guardarSesion(mesa, sessionId) {
+    try {
+      if (sessionId) localStorage.setItem(sessionStorageKey(mesa), sessionId);
+      else localStorage.removeItem(sessionStorageKey(mesa));
+    } catch (e) {}
+  }
+
+  function limpiaSesion(mesa) {
+    guardarSesion(mesa, null);
+    try {
+      localStorage.removeItem('matilda-mesa-cerrada-' + mesa);
+      localStorage.removeItem('matilda-cart-' + mesa);
+      localStorage.removeItem('matilda-expulsado-' + mesa);
+    } catch (e) {}
+  }
+
+  var mesaDesdeUrl = leerDeUrl();
+  var mesaActual = mesaDesdeUrl || leerGuardada() || 'Mesa01';
   guardar(mesaActual);
+
+  // Escaneó el QR de la mesa: nueva visita → limpia sesión vieja
+  var forzarJoin = Boolean(mesaDesdeUrl);
+  if (forzarJoin) {
+    limpiaSesion(mesaActual);
+  }
 
   function conMesaEnHref(href) {
     try {
@@ -62,8 +97,7 @@
     });
   }
 
-  // Si llegaron con ?mesa=, limpia la URL manteniendo la mesa en storage
-  if (leerDeUrl()) {
+  if (mesaDesdeUrl) {
     try {
       var limpia = window.location.pathname + window.location.hash;
       window.history.replaceState({}, '', limpia);
@@ -84,6 +118,27 @@
     },
     cartKey: function () {
       return 'matilda-cart-' + mesaActual;
+    },
+    sessionKey: function () {
+      return sessionStorageKey(mesaActual);
+    },
+    expelledKey: function () {
+      return 'matilda-expulsado-' + mesaActual;
+    },
+    getSession: function () {
+      return leerSesion(mesaActual);
+    },
+    setSession: function (sessionId) {
+      guardarSesion(mesaActual, sessionId);
+    },
+    clearSession: function () {
+      limpiaSesion(mesaActual);
+    },
+    needsJoin: function () {
+      return forzarJoin;
+    },
+    consumeJoin: function () {
+      forzarJoin = false;
     },
     menuPath: function (mesa) {
       return '/?mesa=' + encodeURIComponent(mesa || mesaActual);

@@ -4,6 +4,9 @@
   var CLOSE_KEY =
     (window.MatildaMesa && window.MatildaMesa.closeKey()) ||
     'matilda-mesa-cerrada';
+  var EXPELLED_KEY =
+    (window.MatildaMesa && window.MatildaMesa.expelledKey()) ||
+    'matilda-expulsado-' + MESA_FIJA;
   var statusEl = document.getElementById('pagar-status');
   var sheet = document.getElementById('pagar-sheet');
   var body = document.getElementById('pagar-body');
@@ -184,6 +187,20 @@
     }, 250);
   }
 
+  function getSessionId() {
+    return (window.MatildaMesa && window.MatildaMesa.getSession()) || null;
+  }
+
+  function cuentaUrl() {
+    var url = '/api/cuenta?mesa=' + encodeURIComponent(MESA_FIJA);
+    var ses = getSessionId();
+    if (ses) url += '&sessionId=' + encodeURIComponent(ses);
+    if (window.MatildaMesa && window.MatildaMesa.needsJoin()) {
+      url += '&join=1';
+    }
+    return url;
+  }
+
   function loadCuenta() {
     statusEl.hidden = false;
     statusEl.textContent = 'Cargando cuenta…';
@@ -192,7 +209,7 @@
     hint.textContent = '';
     body.innerHTML = '';
 
-    fetch('/api/cuenta?mesa=' + encodeURIComponent(MESA_FIJA))
+    fetch(cuentaUrl())
       .then(function (res) {
         return res.json().then(function (data) {
           if (!res.ok || !data.ok) throw new Error(data.error || 'Error');
@@ -200,6 +217,23 @@
         });
       })
       .then(function (data) {
+        if (data.sessionId && window.MatildaMesa && !data.expulsado) {
+          window.MatildaMesa.setSession(data.sessionId);
+        }
+        if (window.MatildaMesa && window.MatildaMesa.consumeJoin) {
+          window.MatildaMesa.consumeJoin();
+        }
+
+        if (data.expulsado) {
+          localStorage.setItem(EXPELLED_KEY, '1');
+          localStorage.setItem(CLOSE_KEY, '1');
+          statusEl.textContent =
+            'Esta visita ya terminó (cuenta pagada). Escanea de nuevo el QR de la mesa si quieres ordenar.';
+          btnPagar.disabled = true;
+          if (btnPagarMp) btnPagarMp.disabled = true;
+          return;
+        }
+
         var pedidos = data.pedidos || [];
 
         if (data.orderingClosed && pedidos.length) {

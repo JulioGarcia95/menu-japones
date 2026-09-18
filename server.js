@@ -154,12 +154,15 @@ function finalizarCuentaMesa(mesa, metodoPago) {
   });
   guardarPedidos(pedidos);
 
+  // Nueva sesión = los clientes anteriores quedan expulsados
   var mesas = leerMesas();
   mesas[mesa] = {
     orderingClosed: false,
     reopenedAt: ahora,
     paidWith: metodoPago,
     paidAt: ahora,
+    sessionId: nuevoSessionId(),
+    payToken: null,
   };
   guardarMesas(mesas);
 
@@ -169,6 +172,64 @@ function finalizarCuentaMesa(mesa, metodoPago) {
     pedidosCerrados: deMesa.length,
     total: total,
     orderingClosed: false,
+    sessionId: mesas[mesa].sessionId,
+  };
+}
+
+function nuevoSessionId() {
+  return (
+    'ses-' +
+    Date.now().toString(36) +
+    '-' +
+    Math.floor(Math.random() * 1e6).toString(36)
+  );
+}
+
+function asegurarSesionMesa(mesa) {
+  var mesas = leerMesas();
+  var info = mesas[mesa] || {};
+  if (!info.sessionId) {
+    info.sessionId = nuevoSessionId();
+    mesas[mesa] = info;
+    guardarMesas(mesas);
+  }
+  return info.sessionId;
+}
+
+function evaluarSesionCliente(mesa, clientSession, opts) {
+  opts = opts || {};
+  var forzarNueva = Boolean(opts.forzarNueva);
+  var serverSes = asegurarSesionMesa(mesa);
+
+  if (forzarNueva) {
+    // Escaneó QR de mesa otra vez: adopta la sesión actual
+    return {
+      sessionId: serverSes,
+      sessionValid: true,
+      expulsado: false,
+    };
+  }
+
+  if (!clientSession) {
+    return {
+      sessionId: serverSes,
+      sessionValid: true,
+      expulsado: false,
+    };
+  }
+
+  if (clientSession === serverSes) {
+    return {
+      sessionId: serverSes,
+      sessionValid: true,
+      expulsado: false,
+    };
+  }
+
+  return {
+    sessionId: serverSes,
+    sessionValid: false,
+    expulsado: true,
   };
 }
 
@@ -265,9 +326,22 @@ app.post('/api/pedidos', function (req, res) {
     });
   }
 
+  var clientSession = String((req.body && req.body.sessionId) || '').trim();
+  var ses = evaluarSesionCliente(mesa, clientSession);
+  if (ses.expulsado) {
+    return res.status(403).json({
+      ok: false,
+      error:
+        'Esta visita ya terminó (cuenta pagada). Escanea de nuevo el QR de la mesa para ordenar.',
+      expulsado: true,
+      sessionId: ses.sessionId,
+    });
+  }
+
   var pedido = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     mesa: mesa,
+    sessionId: ses.sessionId,
     status: 'pendiente',
     paid: false,
     createdAt: new Date().toISOString(),
@@ -342,6 +416,12 @@ app.get('/api/cuenta', function (req, res) {
     return res.status(400).json({ ok: false, error: 'Mesa inválida' });
   }
 
+  var clientSession = String(req.query.sessionId || '').trim();
+  var forzarNueva =
+    String(req.query.join || '') === '1' ||
+    String(req.query.join || '').toLowerCase() === 'true';
+  var ses = evaluarSesionCliente(mesa, clientSession, { forzarNueva: forzarNueva });
+
   var pedidos = leerPedidos()
     .map(function (p) {
       return Object.assign({}, p, {
@@ -353,6 +433,23 @@ app.get('/api/cuenta', function (req, res) {
       return p.mesa === mesa && !p.paid;
     });
 
+  // Si está expulsado, no le mostramos la cuenta activa de los nuevos comensales
+  if (ses.expulsado) {
+    return res.json({
+      ok: true,
+      mesa: mesa,
+      pedidos: [],
+      total: 0,
+      orderingClosed: true,
+      expulsado: true,
+      sessionValid: false,
+      sessionId: ses.sessionId,
+      payToken: null,
+      cajaUrl: null,
+      qrUrl: null,
+    });
+  }
+
   var total = pedidos.reduce(function (sum, p) {
     return sum + (Number(p.total) || 0);
   }, 0);
@@ -361,7 +458,6 @@ app.get('/api/cuenta', function (req, res) {
   var closed = mesaCerrada(mesa);
   var payToken = info.payToken || null;
 
-  // Si la cuenta ya estaba cerrada sin token (datos viejos), genera uno
   if (closed && !payToken && pedidos.length) {
     payToken =
       'pay-' +
@@ -397,6 +493,9 @@ app.get('/api/cuenta', function (req, res) {
     pedidos: pedidos,
     total: total,
     orderingClosed: closed,
+    expulsado: false,
+    sessionValid: true,
+    sessionId: ses.sessionId,
     payToken: payToken,
     cajaUrl: cajaUrl,
     qrUrl: qrUrl,
@@ -438,11 +537,13 @@ app.post('/api/cuenta/cerrar', function (req, res) {
     Math.floor(Math.random() * 1e6).toString(36);
 
   var mesas = leerMesas();
+  var prev = mesas[mesa] || {};
   mesas[mesa] = {
     orderingClosed: true,
     closedAt: new Date().toISOString(),
     total: total,
     payToken: payToken,
+    sessionId: prev.sessionId || nuevoSessionId(),
   };
   guardarMesas(mesas);
 
