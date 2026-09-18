@@ -319,9 +319,7 @@
     if (!data || !data.ok) return;
 
     if (data.sessionId && window.MatildaMesa) {
-      if (data.expulsado) {
-        // No adopta la sesión nueva: queda expulsado hasta escanear QR
-      } else {
+      if (!data.expulsado) {
         window.MatildaMesa.setSession(data.sessionId);
       }
     }
@@ -342,12 +340,11 @@
     }
 
     expulsado = false;
-    localStorage.removeItem(EXPELLED_KEY);
-    hideExpulsadoBanner();
-
     orderingClosed = Boolean(data.orderingClosed);
+    localStorage.removeItem(EXPELLED_KEY);
     if (orderingClosed) localStorage.setItem(CLOSE_KEY, '1');
     else localStorage.removeItem(CLOSE_KEY);
+    hideExpulsadoBanner();
     render();
   }
 

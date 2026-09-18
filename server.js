@@ -154,14 +154,22 @@ function finalizarCuentaMesa(mesa, metodoPago) {
   });
   guardarPedidos(pedidos);
 
-  // Nueva sesión = los clientes anteriores quedan expulsados
+  // Nueva sesión; la anterior queda baneada (no puede seguir ordenando)
   var mesas = leerMesas();
+  var prev = mesas[mesa] || {};
+  var banned = Array.isArray(prev.bannedSessions)
+    ? prev.bannedSessions.slice()
+    : [];
+  if (prev.sessionId) banned.push(prev.sessionId);
+  if (banned.length > 20) banned = banned.slice(-20);
+
   mesas[mesa] = {
     orderingClosed: false,
     reopenedAt: ahora,
     paidWith: metodoPago,
     paidAt: ahora,
     sessionId: nuevoSessionId(),
+    bannedSessions: banned,
     payToken: null,
   };
   guardarMesas(mesas);
@@ -196,10 +204,22 @@ function asegurarSesionMesa(mesa) {
   return info.sessionId;
 }
 
+function tienePedidosAbiertos(mesa) {
+  return leerPedidos().some(function (p) {
+    return p.mesa === mesa && !p.paid;
+  });
+}
+
+function sesionesBaneadas(mesa) {
+  var info = leerMesas()[mesa] || {};
+  return Array.isArray(info.bannedSessions) ? info.bannedSessions : [];
+}
+
 function evaluarSesionCliente(mesa, clientSession, opts) {
   opts = opts || {};
   var forzarNueva = Boolean(opts.forzarNueva);
   var serverSes = asegurarSesionMesa(mesa);
+  var banned = sesionesBaneadas(mesa);
 
   if (forzarNueva) {
     // Escaneó QR de mesa otra vez: adopta la sesión actual
@@ -219,6 +239,24 @@ function evaluarSesionCliente(mesa, clientSession, opts) {
   }
 
   if (clientSession === serverSes) {
+    return {
+      sessionId: serverSes,
+      sessionValid: true,
+      expulsado: false,
+    };
+  }
+
+  // Solo expulsamos sesiones que pagaron / cerraron cuenta
+  if (banned.indexOf(clientSession) !== -1) {
+    return {
+      sessionId: serverSes,
+      sessionValid: false,
+      expulsado: true,
+    };
+  }
+
+  // Sesión vieja (p. ej. tras reinicio del servidor) y mesa libre → reenganche
+  if (!mesaCerrada(mesa) && !tienePedidosAbiertos(mesa)) {
     return {
       sessionId: serverSes,
       sessionValid: true,
@@ -544,6 +582,9 @@ app.post('/api/cuenta/cerrar', function (req, res) {
     total: total,
     payToken: payToken,
     sessionId: prev.sessionId || nuevoSessionId(),
+    bannedSessions: Array.isArray(prev.bannedSessions)
+      ? prev.bannedSessions
+      : [],
   };
   guardarMesas(mesas);
 
