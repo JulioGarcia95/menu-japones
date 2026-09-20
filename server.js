@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const QRCode = require('qrcode');
 
 const app = express();
@@ -12,10 +13,222 @@ const PUBLIC_URL = String(process.env.PUBLIC_URL || '')
 const PEDIDOS_PATH = path.join(__dirname, 'pedidos.json');
 const MESAS_PATH = path.join(__dirname, 'mesas.json');
 const CUENTAS_PATH = path.join(__dirname, 'cuentas.json');
+const AUTH_COOKIE = 'matilda_staff';
+const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
+const AUTH_SECRET =
+  String(process.env.AUTH_SECRET || '').trim() ||
+  crypto.randomBytes(24).toString('hex');
+
+var PINES = {
+  cocina: String(process.env.COCINA_PIN || '1234').trim(),
+  caja: String(process.env.CAJA_PIN || '1234').trim(),
+  admin: String(process.env.ADMIN_PIN || '9999').trim(),
+};
+
+var PAGE_AREAS = {
+  '/cocina.html': 'cocina',
+  '/clientes.html': 'caja',
+  '/caja.html': 'caja',
+  '/admin.html': 'admin',
+};
 
 app.set('trust proxy', 1);
 app.use(express.json());
+
+function parseCookies(req) {
+  var out = {};
+  String(req.headers.cookie || '')
+    .split(';')
+    .forEach(function (part) {
+      var i = part.indexOf('=');
+      if (i === -1) return;
+      var k = part.slice(0, i).trim();
+      var v = part.slice(i + 1).trim();
+      try {
+        out[k] = decodeURIComponent(v);
+      } catch (e) {
+        out[k] = v;
+      }
+    });
+  return out;
+}
+
+function b64url(buf) {
+  return Buffer.from(buf)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function fromB64url(str) {
+  var s = String(str || '').replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  return Buffer.from(s, 'base64').toString('utf8');
+}
+
+function firmarToken(payload) {
+  var body = b64url(JSON.stringify(payload));
+  var sig = b64url(
+    crypto.createHmac('sha256', AUTH_SECRET).update(body).digest()
+  );
+  return body + '.' + sig;
+}
+
+function verificarToken(token) {
+  var parts = String(token || '').split('.');
+  if (parts.length !== 2) return null;
+  var body = parts[0];
+  var sig = parts[1];
+  var expected = b64url(
+    crypto.createHmac('sha256', AUTH_SECRET).update(body).digest()
+  );
+  var a = Buffer.from(sig);
+  var b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    var payload = JSON.parse(fromB64url(body));
+    if (!payload || !payload.area || !payload.exp) return null;
+    if (Date.now() > Number(payload.exp)) return null;
+    if (!PINES[payload.area]) return null;
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+function leerAuth(req) {
+  var cookies = parseCookies(req);
+  var token = cookies[AUTH_COOKIE] || '';
+  var header = String(req.headers.authorization || '');
+  if (!token && header.toLowerCase().indexOf('bearer ') === 0) {
+    token = header.slice(7).trim();
+  }
+  return verificarToken(token);
+}
+
+function areasDeAuth(auth) {
+  if (!auth) return [];
+  if (auth.area === 'admin') return ['cocina', 'caja', 'admin'];
+  return [auth.area];
+}
+
+function authPuede(auth, area) {
+  return areasDeAuth(auth).indexOf(area) !== -1;
+}
+
+function cookieSegura(req) {
+  if (String(process.env.COOKIE_SECURE || '').toLowerCase() === 'true') {
+    return true;
+  }
+  var proto = String(req.headers['x-forwarded-proto'] || req.protocol || '')
+    .split(',')[0]
+    .trim()
+    .toLowerCase();
+  return proto === 'https';
+}
+
+function setAuthCookie(req, res, token) {
+  var parts = [
+    AUTH_COOKIE + '=' + encodeURIComponent(token),
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=' + Math.floor(AUTH_TTL_MS / 1000),
+  ];
+  if (cookieSegura(req)) parts.push('Secure');
+  res.setHeader('Set-Cookie', parts.join('; '));
+}
+
+function clearAuthCookie(req, res) {
+  var parts = [
+    AUTH_COOKIE + '=',
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=0',
+  ];
+  if (cookieSegura(req)) parts.push('Secure');
+  res.setHeader('Set-Cookie', parts.join('; '));
+}
+
+function requireAreas(areas) {
+  var allowed = Array.isArray(areas) ? areas : [areas];
+  return function (req, res, next) {
+    var auth = leerAuth(req);
+    for (var i = 0; i < allowed.length; i++) {
+      if (authPuede(auth, allowed[i])) {
+        req.staff = auth;
+        return next();
+      }
+    }
+    return res.status(401).json({
+      ok: false,
+      error: 'Necesitas iniciar sesión con PIN',
+      login: '/login.html',
+    });
+  };
+}
+
+// Bloquea páginas de staff antes de servir estáticos
+app.use(function (req, res, next) {
+  var area = PAGE_AREAS[req.path];
+  if (!area) return next();
+  if (authPuede(leerAuth(req), area)) return next();
+  var nextUrl = req.path + (req.url.indexOf('?') >= 0 ? req.url.slice(req.url.indexOf('?')) : '');
+  return res.redirect(
+    '/login.html?area=' +
+      encodeURIComponent(area) +
+      '&next=' +
+      encodeURIComponent(nextUrl)
+  );
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/api/auth/me', function (req, res) {
+  var auth = leerAuth(req);
+  if (!auth) {
+    return res.json({ ok: false, authenticated: false });
+  }
+  res.json({
+    ok: true,
+    authenticated: true,
+    area: auth.area,
+    areas: areasDeAuth(auth),
+  });
+});
+
+app.post('/api/auth/login', function (req, res) {
+  var area = String((req.body && req.body.area) || '')
+    .trim()
+    .toLowerCase();
+  var pin = String((req.body && req.body.pin) || '').trim();
+
+  if (!PINES[area]) {
+    return res.status(400).json({ ok: false, error: 'Área inválida' });
+  }
+  if (!pin || pin !== PINES[area]) {
+    return res.status(401).json({ ok: false, error: 'PIN incorrecto' });
+  }
+
+  var token = firmarToken({
+    area: area,
+    iat: Date.now(),
+    exp: Date.now() + AUTH_TTL_MS,
+  });
+  setAuthCookie(req, res, token);
+  res.json({
+    ok: true,
+    area: area,
+    areas: areasDeAuth({ area: area }),
+  });
+});
+
+app.post('/api/auth/logout', function (req, res) {
+  clearAuthCookie(req, res);
+  res.json({ ok: true });
+});
 
 function urlPublica(req) {
   if (PUBLIC_URL) return PUBLIC_URL;
@@ -320,6 +533,18 @@ function etiquetaEstado(status) {
 }
 
 app.get('/api/pedidos', function (req, res) {
+  var estado = String(req.query.estado || '').toLowerCase();
+  if (estado === 'activos') {
+    var auth = leerAuth(req);
+    if (!authPuede(auth, 'cocina') && !authPuede(auth, 'admin')) {
+      return res.status(401).json({
+        ok: false,
+        error: 'Necesitas iniciar sesión con PIN',
+        login: '/login.html?area=cocina',
+      });
+    }
+  }
+
   var pedidos = leerPedidos()
     .map(function (p) {
       return Object.assign({}, p, { status: normalizarEstado(p.status) });
@@ -327,7 +552,6 @@ app.get('/api/pedidos', function (req, res) {
     .slice()
     .reverse();
 
-  var estado = String(req.query.estado || '').toLowerCase();
   if (estado === 'activos') {
     pedidos = pedidos.filter(function (p) {
       return p.status === 'pendiente' || p.status === 'en_proceso';
@@ -411,7 +635,7 @@ app.post('/api/pedidos', function (req, res) {
   res.json({ ok: true, id: pedido.id, mesa: pedido.mesa });
 });
 
-app.patch('/api/pedidos/:id', function (req, res) {
+app.patch('/api/pedidos/:id', requireAreas(['cocina', 'admin']), function (req, res) {
   var id = String(req.params.id || '');
   var status = normalizarEstado(req.body && req.body.status);
   if (
@@ -659,7 +883,7 @@ app.get('/api/cuenta/qr.png', function (req, res) {
     });
 });
 
-app.get('/api/caja', function (req, res) {
+app.get('/api/caja', requireAreas(['caja', 'admin']), function (req, res) {
   var mesa = normalizarMesa(req.query.mesa);
   var token = String(req.query.t || '').trim();
   if (!mesa) {
@@ -705,7 +929,7 @@ app.get('/api/caja', function (req, res) {
   });
 });
 
-app.post('/api/cuenta/pagar', function (req, res) {
+app.post('/api/cuenta/pagar', requireAreas(['caja', 'admin']), function (req, res) {
   var mesa = normalizarMesa((req.body && req.body.mesa) || 'Mesa01');
   if (!mesa) {
     return res.status(400).json({ ok: false, error: 'Mesa inválida' });
@@ -742,7 +966,7 @@ app.post('/api/cuenta/pagar', function (req, res) {
   res.json({ ok: true, mesa: mesa, pagados: pagados, total: total });
 });
 
-app.get('/api/mesas', function (req, res) {
+app.get('/api/mesas', requireAreas(['caja', 'admin']), function (req, res) {
   var mesasState = leerMesas();
   var pedidos = leerPedidos().map(function (p) {
     return Object.assign({}, p, {
@@ -786,7 +1010,7 @@ app.get('/api/mesas', function (req, res) {
   res.json({ ok: true, mesas: lista });
 });
 
-app.get('/api/local-url', function (req, res) {
+app.get('/api/local-url', requireAreas(['caja', 'admin']), function (req, res) {
   var base = urlPublica(req);
   var ip = obtenerIpLocal();
   res.json({
@@ -804,7 +1028,7 @@ app.get('/api/local-url', function (req, res) {
   });
 });
 
-app.get('/api/mesas/:mesa/qr.png', function (req, res) {
+app.get('/api/mesas/:mesa/qr.png', requireAreas(['caja', 'admin']), function (req, res) {
   var mesa = normalizarMesa(req.params.mesa);
   if (!mesa || MESAS_BASE.indexOf(mesa) === -1) {
     return res.status(400).send('Mesa no válida');
@@ -830,7 +1054,7 @@ app.get('/api/mesas/:mesa/qr.png', function (req, res) {
     });
 });
 
-app.post('/api/mesas/:mesa/reabrir', function (req, res) {
+app.post('/api/mesas/:mesa/reabrir', requireAreas(['caja', 'admin']), function (req, res) {
   var mesa = normalizarMesa(req.params.mesa);
   if (!mesa) {
     return res.status(400).json({ ok: false, error: 'Mesa inválida' });
@@ -1073,7 +1297,7 @@ app.get('/api/webhooks/mercadopago', function (req, res) {
   });
 });
 
-app.get('/api/admin/cuentas', function (req, res) {
+app.get('/api/admin/cuentas', requireAreas(['admin']), function (req, res) {
   var fecha = String(req.query.fecha || '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
     fecha = fechaLocalISO(new Date().toISOString());
@@ -1129,4 +1353,5 @@ app.listen(PUERTO, '0.0.0.0', function () {
   console.log('QR mesas:' + base + '/clientes.html');
   console.log('QR Mesa01 → ' + base + '/?mesa=Mesa01');
   console.log('QR Mesa02 → ' + base + '/?mesa=Mesa02');
+  console.log('PINs staff → cocina / caja / admin (vars COCINA_PIN, CAJA_PIN, ADMIN_PIN)');
 });

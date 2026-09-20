@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Acceso staff — Matilda Kitchen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Sora:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="login-body">
+    <div class="page-bg" aria-hidden="true"></div>
+
+    <main class="login-shell">
+      <p class="login-kicker">Matilda Kitchen</p>
+      <h1 id="login-title">Acceso staff</h1>
+      <p class="login-sub" id="login-sub">Ingresa el PIN del área.</p>
+
+      <form class="login-form" id="login-form" autocomplete="off">
+        <label class="login-label" for="login-pin">PIN</label>
+        <input
+          id="login-pin"
+          class="login-pin"
+          type="password"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          maxlength="12"
+          placeholder="••••"
+          required
+          autofocus
+        />
+        <p class="login-error" id="login-error" hidden></p>
+        <button type="submit" class="login-submit" id="login-submit">
+          Entrar
+        </button>
+      </form>
+
+      <p class="login-hint">
+        Menú de clientes:
+        <a href="/">abrir menú</a>
+      </p>
+    </main>
+
+    <script src="/login.js"></script>
+  </body>
+</html>

@@ -2,7 +2,6 @@
   var scanSection = document.getElementById('caja-scan');
   var cuentaSection = document.getElementById('caja-cuenta');
   var scanStatus = document.getElementById('caja-scan-status');
-  var mesaSelect = document.getElementById('caja-mesa-select');
   var tokenInput = document.getElementById('caja-token-input');
   var cargarBtn = document.getElementById('caja-cargar-btn');
   var mesaLabel = document.getElementById('caja-mesa-label');
@@ -34,9 +33,6 @@
   function parseCajaUrl(text) {
     try {
       var url = new URL(text, window.location.origin);
-      if (url.pathname.indexOf('caja') === -1 && !url.searchParams.get('mesa')) {
-        // permitir solo query suelta
-      }
       var mesa = url.searchParams.get('mesa');
       var t = url.searchParams.get('t');
       if (mesa) return { mesa: mesa, t: t || '' };
@@ -93,6 +89,7 @@
     cuentaSection.hidden = true;
     scanSection.hidden = false;
     if (statusEl) statusEl.textContent = '';
+    if (tokenInput) tokenInput.value = '';
     startScanner();
   }
 
@@ -135,7 +132,7 @@
     if (!readerEl || typeof Html5Qrcode === 'undefined') {
       if (scanStatus) {
         scanStatus.textContent =
-          'Cámara no disponible. Usa mesa + token manualmente.';
+          'Cámara no disponible. Pega el enlace del QR abajo.';
       }
       return;
     }
@@ -165,7 +162,7 @@
       .catch(function () {
         if (scanStatus) {
           scanStatus.textContent =
-            'No se pudo abrir la cámara. Usa carga manual abajo.';
+            'No se pudo abrir la cámara. Pega el enlace del QR abajo.';
         }
         html5QrCode = null;
         scanning = false;
@@ -188,7 +185,15 @@
 
   if (cargarBtn) {
     cargarBtn.addEventListener('click', function () {
-      cargarCuenta(mesaSelect.value, (tokenInput.value || '').trim());
+      var parsed = parseCajaUrl((tokenInput && tokenInput.value) || '');
+      if (!parsed || !parsed.mesa) {
+        if (scanStatus) {
+          scanStatus.textContent =
+            'Pega el enlace completo del QR (o el código Mesa01|token).';
+        }
+        return;
+      }
+      cargarCuenta(parsed.mesa, parsed.t);
     });
   }
 
