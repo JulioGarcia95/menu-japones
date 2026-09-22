@@ -13,6 +13,8 @@
   var imprimirConsumoBtn = document.getElementById('caja-imprimir-consumo');
   var nuevaBtn = document.getElementById('caja-nueva');
   var readerEl = document.getElementById('caja-reader');
+  var toastEl = document.getElementById('caja-toast');
+  var toastText = document.getElementById('caja-toast-text');
 
   if (!scanSection || !cuentaSection) return;
 
@@ -21,6 +23,7 @@
   var html5QrCode = null;
   var scanning = false;
   var pollTimer = null;
+  var toastTimer = null;
 
   function escapeHtml(str) {
     return String(str)
@@ -137,16 +140,39 @@
     startScanner();
   }
 
-  function imprimirConsumoMesa(mesa, done) {
+  function showToast(mensaje) {
+    if (!toastEl || !toastText) return;
+    toastText.textContent = mensaje || '';
+    toastEl.hidden = false;
+    window.requestAnimationFrame(function () {
+      toastEl.classList.add('is-visible');
+    });
+    if (toastTimer) window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(function () {
+      toastEl.classList.remove('is-visible');
+      window.setTimeout(function () {
+        if (!toastEl.classList.contains('is-visible')) {
+          toastEl.hidden = true;
+        }
+      }, 280);
+    }, 4500);
+  }
+
+  function imprimirConsumoMesa(mesa, pedidos, total, done) {
     if (!mesa) {
       if (done) done();
       return;
+    }
+    var body = { mesa: mesa };
+    if (pedidos && pedidos.length) {
+      body.pedidos = pedidos;
+      body.total = total;
     }
     fetch('/api/cuenta/point/print-consumo', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mesa: mesa }),
+      body: JSON.stringify(body),
     })
       .then(function (res) {
         return res.json().then(function (data) {
@@ -171,10 +197,10 @@
       (cuentaActual && cuentaActual.mesa) ||
       (mesaLabel && mesaLabel.textContent) ||
       'la mesa';
-    var totalTxt =
-      (cuentaActual && formatMoney(cuentaActual.total)) ||
-      (totalEl && totalEl.textContent) ||
-      '';
+    var totalNum = cuentaActual ? Number(cuentaActual.total) || 0 : 0;
+    var totalTxt = formatMoney(totalNum);
+    var mesaPrint = cuentaActual && cuentaActual.mesa;
+    var pedidosPrint = (cuentaActual && cuentaActual.pedidos) || [];
 
     if (pagarPointBtn) {
       pagarPointBtn.disabled = true;
@@ -182,14 +208,23 @@
     }
     if (totalEl) totalEl.textContent = formatMoney(0);
 
-    alert(
-      'Cobro completado\n\n' +
-        mesaTxt +
-        (totalTxt ? '\nTotal: ' + totalTxt : '') +
-        '\n\nEl pago se aprobó en Point Smart.\nListo para el siguiente cliente.'
-    );
+    showToast(mesaTxt + ' · ' + totalTxt + ' · Pago aprobado');
 
-    // Cámara lista para el siguiente QR
+    // Consumo justo después del ticket seller de MP
+    if (mesaPrint) {
+      window.setTimeout(function () {
+        imprimirConsumoMesa(mesaPrint, pedidosPrint, totalNum, function (err) {
+          if (err && scanStatus) {
+            scanStatus.textContent =
+              'Siguiente cliente: escanea el QR. (Consumo: ' +
+              (err.message || 'no se imprimió') +
+              ')';
+          }
+        });
+      }, 2000);
+    }
+
+    // Cámara lista para el siguiente QR (sin alert bloqueante)
     showScan();
     if (scanStatus) {
       scanStatus.textContent =

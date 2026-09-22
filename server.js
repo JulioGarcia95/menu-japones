@@ -1432,12 +1432,6 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
       console.log('Terminal:', terminalId);
       console.log('--------------------');
 
-      // Consumo enseguida: queda en cola del Point y sale tras el ticket seller
-      imprimirConsumoPoint(mesa, pedidos, total, {
-        delayMs: 0,
-        closedAt: new Date().toISOString(),
-      });
-
       res.json({
         ok: true,
         mesa: mesa,
@@ -1766,24 +1760,43 @@ app.post(
       return res.status(400).json({ ok: false, error: 'Mesa inválida' });
     }
 
+    var pedidosBody = req.body && Array.isArray(req.body.pedidos) ? req.body.pedidos : null;
+    var totalBody =
+      req.body && req.body.total != null ? Number(req.body.total) : null;
+
     var cuenta = ultimaCuentaMesa(mesa);
-    if (!cuenta || !(cuenta.pedidos || []).length) {
+    var pedidos =
+      pedidosBody && pedidosBody.length
+        ? pedidosBody
+        : cuenta && cuenta.pedidos
+          ? cuenta.pedidos
+          : null;
+    var total =
+      totalBody != null && !Number.isNaN(totalBody)
+        ? totalBody
+        : cuenta
+          ? Number(cuenta.total) || 0
+          : 0;
+    var closedAt =
+      (cuenta && (cuenta.closedAt || cuenta.createdAt)) ||
+      new Date().toISOString();
+
+    if (!pedidos || !pedidos.length) {
       return res.status(404).json({
         ok: false,
         error: 'No hay una cuenta reciente de esa mesa para imprimir',
       });
     }
 
-    imprimirConsumoPoint(mesa, cuenta.pedidos, cuenta.total, {
+    imprimirConsumoPoint(mesa, pedidos, total, {
       delayMs: 0,
-      closedAt: cuenta.closedAt || cuenta.createdAt,
+      closedAt: closedAt,
     })
       .then(function (result) {
         if (!result || !result.ok) {
           var errMsg =
             (result && result.error) ||
             'No se pudo enviar la impresión al Point';
-          // Mensaje claro si MP aún no habilitó impresiones custom
           if (/print|impres|forbidden|not.?enabled|not.?allow|unauthorized|permission/i.test(errMsg)) {
             errMsg +=
               ' — Es posible que Mercado Pago deba habilitar impresiones custom en tu Point (soporte MP).';
@@ -1798,7 +1811,7 @@ app.post(
           mesa: mesa,
           actionId: result.id,
           status: result.status,
-          total: cuenta.total,
+          total: total,
         });
       })
       .catch(function (err) {

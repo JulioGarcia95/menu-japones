@@ -1152,6 +1152,54 @@ body.success-open {
   margin-top: 0.75rem;
 }
 
+.caja-toast[hidden] {
+  display: none !important;
+}
+
+.caja-toast {
+  position: fixed;
+  top: 1.1rem;
+  left: 50%;
+  z-index: 80;
+  width: min(92vw, 420px);
+  transform: translateX(-50%) translateY(-0.4rem);
+  padding: 0.95rem 1.15rem;
+  border-radius: 14px;
+  border: 1px solid rgba(61, 214, 140, 0.45);
+  background: linear-gradient(
+    160deg,
+    rgba(18, 42, 32, 0.96),
+    rgba(12, 28, 22, 0.98)
+  );
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+  color: #e8fff2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.caja-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.caja-toast-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7df0b0;
+  font-weight: 600;
+}
+
+.caja-toast-text {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
 .pagar-hint {
   margin: 0.75rem 0 0;
   color: var(--mute);
