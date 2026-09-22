@@ -8,6 +8,7 @@
   var totalEl = document.getElementById('caja-total');
   var statusEl = document.getElementById('caja-status');
   var body = document.getElementById('caja-body');
+  var pagarPointBtn = document.getElementById('caja-pagar-point');
   var pagarMpBtn = document.getElementById('caja-pagar-mp');
   var nuevaBtn = document.getElementById('caja-nueva');
   var readerEl = document.getElementById('caja-reader');
@@ -17,6 +18,7 @@
   var cuentaActual = null;
   var html5QrCode = null;
   var scanning = false;
+  var pollTimer = null;
 
   function escapeHtml(str) {
     return String(str)
@@ -84,13 +86,69 @@
     }
   }
 
+  function stopPoll() {
+    if (pollTimer) {
+      window.clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
   function showScan() {
+    stopPoll();
     cuentaActual = null;
     cuentaSection.hidden = true;
     scanSection.hidden = false;
     if (statusEl) statusEl.textContent = '';
     if (tokenInput) tokenInput.value = '';
+    if (pagarPointBtn) {
+      pagarPointBtn.disabled = false;
+      pagarPointBtn.textContent = 'Cobrar con Point Smart';
+    }
+    if (pagarMpBtn) {
+      pagarMpBtn.disabled = false;
+      pagarMpBtn.textContent = 'Cobrar con link Mercado Pago';
+    }
     startScanner();
+  }
+
+  function marcarPagadoPoint() {
+    stopPoll();
+    if (statusEl) {
+      statusEl.textContent = 'Pago aprobado en Point. Mesa cerrada.';
+    }
+    if (pagarPointBtn) {
+      pagarPointBtn.disabled = true;
+      pagarPointBtn.textContent = 'Pagado en Point';
+    }
+    if (pagarMpBtn) pagarMpBtn.disabled = true;
+    if (totalEl) totalEl.textContent = formatMoney(0);
+  }
+
+  function pollPointOrder(orderId) {
+    stopPoll();
+    pollTimer = window.setInterval(function () {
+      fetch('/api/cuenta/point/' + encodeURIComponent(orderId), {
+        credentials: 'same-origin',
+      })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            if (!res.ok || !data.ok) throw new Error(data.error || 'Error');
+            return data;
+          });
+        })
+        .then(function (data) {
+          if (statusEl) {
+            statusEl.textContent =
+              'Point: ' +
+              (data.status || '…') +
+              ' · Esperando pago en la terminal…';
+          }
+          if (data.paid) {
+            marcarPagadoPoint();
+          }
+        })
+        .catch(function () {});
+    }, 3000);
   }
 
   function cargarCuenta(mesa, token) {
@@ -201,6 +259,46 @@
     nuevaBtn.addEventListener('click', showScan);
   }
 
+  if (pagarPointBtn) {
+    pagarPointBtn.addEventListener('click', function () {
+      if (!cuentaActual) return;
+      pagarPointBtn.disabled = true;
+      pagarPointBtn.textContent = 'Enviando al Point…';
+      if (pagarMpBtn) pagarMpBtn.disabled = true;
+      if (statusEl) statusEl.textContent = 'Enviando cobro al Point Smart…';
+
+      fetch('/api/cuenta/point', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mesa: cuentaActual.mesa }),
+      })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            if (!res.ok || !data.ok) throw new Error(data.error || 'Error');
+            return data;
+          });
+        })
+        .then(function (data) {
+          pagarPointBtn.textContent = 'Esperando en Point…';
+          if (statusEl) {
+            statusEl.textContent =
+              'Cobro $' +
+              Number(data.total || 0) +
+              ' enviado al Point. Pide al cliente que pague en la terminal.';
+          }
+          pollPointOrder(data.orderId);
+        })
+        .catch(function (err) {
+          pagarPointBtn.disabled = false;
+          pagarPointBtn.textContent = 'Cobrar con Point Smart';
+          if (pagarMpBtn) pagarMpBtn.disabled = false;
+          if (statusEl) statusEl.textContent = '';
+          alert(err.message || 'No se pudo enviar el cobro al Point');
+        });
+    });
+  }
+
   if (pagarMpBtn) {
     pagarMpBtn.addEventListener('click', function () {
       if (!cuentaActual) return;
@@ -208,6 +306,7 @@
       pagarMpBtn.textContent = 'Abriendo Mercado Pago…';
       fetch('/api/cuenta/mercadopago', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mesa: cuentaActual.mesa }),
       })
@@ -222,7 +321,7 @@
         })
         .catch(function (err) {
           pagarMpBtn.disabled = false;
-          pagarMpBtn.textContent = 'Cobrar con Mercado Pago';
+          pagarMpBtn.textContent = 'Cobrar con link Mercado Pago';
           alert(err.message || 'No se pudo iniciar el cobro');
         });
     });

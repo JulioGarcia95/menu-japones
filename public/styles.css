@@ -1053,6 +1053,18 @@ body.success-open {
   cursor: wait;
 }
 
+.btn-pagar-mp-secondary {
+  margin-top: 0.55rem;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.btn-pagar-mp-secondary:hover,
+.btn-pagar-mp-secondary:focus-visible {
+  background: rgba(16, 18, 21, 0.06);
+}
+
 .pagar-qr-wrap {
   margin: 1.25rem 0;
   padding: 1rem;
