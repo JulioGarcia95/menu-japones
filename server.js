@@ -502,7 +502,7 @@ function enviarAccionPrintPoint(
             'Print ' + subtype + ' ocupado, reintento ' + (intento + 1) + '…',
             msg
           );
-          return esperarMs(800 * intento).then(function () {
+          return esperarMs(500).then(function () {
             return enviarAccionPrintPoint(
               terminalId,
               token,
@@ -683,8 +683,7 @@ function finalizarCuentaMesa(mesa, metodoPago, extras) {
   };
   guardarMesas(mesas);
 
-  // Ticket de consumo: lo dispara el servidor (no depende del celular/caja).
-  // Espera a que termine el seller_ticket de Mercado Pago.
+  // Ticket de consumo al aprobar (sin esperar ticket de MP).
   if (metodoPago === 'point' && deMesa.length) {
     var pedidosTicket = deMesa.map(function (p) {
       return {
@@ -1519,7 +1518,9 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
     config: {
       point: {
         terminal_id: terminalId,
-        print_on_terminal: 'seller_ticket',
+        // no_ticket: evita el ticket de MP + pantallas de reimpresión,
+        // que dejan la terminal ocupada ~10s y retrasan el de consumo.
+        print_on_terminal: 'no_ticket',
       },
     },
   };
