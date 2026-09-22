@@ -533,7 +533,11 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
   return run();
 }
 
-function finalizarCuentaMesa(mesa, metodoPago) {
+function finalizarCuentaMesa(mesa, metodoPago, extras) {
+  extras = extras || {};
+  var tipAmount = Number(extras.tipAmount) || 0;
+  var paidAmount = Number(extras.paidAmount) || 0;
+
   var pedidos = leerPedidos();
   var ahora = new Date().toISOString();
   var deMesa = pedidos.filter(function (p) {
@@ -555,6 +559,8 @@ function finalizarCuentaMesa(mesa, metodoPago) {
       metodoPago: metodoPago,
       metodoPagoLabel: METODOS_PAGO[metodoPago],
       total: total,
+      tipAmount: tipAmount,
+      paidAmount: paidAmount > 0 ? paidAmount : total + tipAmount,
       pedidos: deMesa.map(function (p) {
         return {
           id: p.id,
@@ -593,6 +599,8 @@ function finalizarCuentaMesa(mesa, metodoPago) {
     sessionId: nuevoSessionId(),
     bannedSessions: banned,
     payToken: null,
+    lastTipAmount: tipAmount || null,
+    lastPaidAmount: paidAmount > 0 ? paidAmount : null,
   };
   guardarMesas(mesas);
 
@@ -601,8 +609,28 @@ function finalizarCuentaMesa(mesa, metodoPago) {
     metodoPago: metodoPago,
     pedidosCerrados: deMesa.length,
     total: total,
+    tipAmount: tipAmount,
+    paidAmount: paidAmount > 0 ? paidAmount : total + tipAmount,
     orderingClosed: false,
     sessionId: mesas[mesa].sessionId,
+  };
+}
+
+function extraerMontosPointOrder(order) {
+  var pay =
+    order &&
+    order.transactions &&
+    Array.isArray(order.transactions.payments) &&
+    order.transactions.payments[0]
+      ? order.transactions.payments[0]
+      : null;
+  if (!pay) {
+    return { tipAmount: 0, paidAmount: 0, amount: 0 };
+  }
+  return {
+    tipAmount: Number(pay.tip_amount) || 0,
+    paidAmount: Number(pay.paid_amount) || 0,
+    amount: Number(pay.amount) || 0,
   };
 }
 
@@ -1494,14 +1522,28 @@ app.get(
           status === 'processed' ||
           status === 'finished' ||
           status === 'closed';
+        var montos = extraerMontosPointOrder(order);
+        var tipAmount = montos.tipAmount;
+        var paidAmount = montos.paidAmount;
 
         if (paid && mesa) {
           var info = leerMesas()[mesa] || {};
           if (info.pointPending || info.orderingClosed) {
-            finalizarCuentaMesa(mesa, 'point');
+            finalizarCuentaMesa(mesa, 'point', {
+              tipAmount: tipAmount,
+              paidAmount: paidAmount,
+            });
+          } else if (tipAmount > 0) {
+            var mesasTip = leerMesas();
+            mesasTip[mesa] = Object.assign({}, mesasTip[mesa] || {}, {
+              lastTipAmount: tipAmount,
+              lastPaidAmount: paidAmount || null,
+            });
+            guardarMesas(mesasTip);
           }
         }
 
+        var mesaInfo = mesa ? leerMesas()[mesa] || {} : {};
         res.json({
           ok: true,
           orderId: order.id,
@@ -1509,6 +1551,8 @@ app.get(
           statusDetail: order.status_detail,
           mesa: mesa,
           paid: paid,
+          tipAmount: tipAmount || Number(mesaInfo.lastTipAmount) || 0,
+          paidAmount: paidAmount || Number(mesaInfo.lastPaidAmount) || 0,
         });
       })
       .catch(function (err) {
@@ -1986,11 +2030,17 @@ function procesarOrderPoint(orderId) {
         return { ok: false, reason: 'sin mesa en external_reference' };
       }
 
-      var resultado = finalizarCuentaMesa(mesa, 'point');
+      var montos = extraerMontosPointOrder(order);
+      var resultado = finalizarCuentaMesa(mesa, 'point', {
+        tipAmount: montos.tipAmount,
+        paidAmount: montos.paidAmount,
+      });
       console.log('--- Point pago aprobado ---');
       console.log('Order:', orderId);
       console.log('Mesa:', mesa);
       console.log('Status:', order.status);
+      console.log('Propina: $' + (montos.tipAmount || 0));
+      console.log('Pagado: $' + (montos.paidAmount || 0));
       console.log('--------------------');
       return { ok: true, mesa: mesa, resultado: resultado };
     });

@@ -188,16 +188,19 @@
       });
   }
 
-  function marcarPagadoPoint() {
+  function marcarPagadoPoint(pagoInfo) {
     stopPoll();
     orderIdActual = null;
     setCancelVisible(false);
+    pagoInfo = pagoInfo || {};
 
     var mesaTxt =
       (cuentaActual && cuentaActual.mesa) ||
       (mesaLabel && mesaLabel.textContent) ||
       'la mesa';
     var totalNum = cuentaActual ? Number(cuentaActual.total) || 0 : 0;
+    var tipNum = Number(pagoInfo.tipAmount) || 0;
+    var paidNum = Number(pagoInfo.paidAmount) || 0;
     var totalTxt = formatMoney(totalNum);
     var mesaPrint = cuentaActual && cuentaActual.mesa;
     var pedidosPrint = (cuentaActual && cuentaActual.pedidos) || [];
@@ -208,7 +211,18 @@
     }
     if (totalEl) totalEl.textContent = formatMoney(0);
 
-    showToast(mesaTxt + ' · ' + totalTxt + ' · Pago aprobado');
+    var toastMsg = mesaTxt + ' · ' + totalTxt + ' · Pago aprobado';
+    if (tipNum > 0) {
+      toastMsg =
+        mesaTxt +
+        ' · Cuenta ' +
+        totalTxt +
+        ' · Propina ' +
+        formatMoney(tipNum) +
+        (paidNum > 0 ? ' · Total ' + formatMoney(paidNum) : '') +
+        ' · Pago aprobado';
+    }
+    showToast(toastMsg);
 
     // Consumo justo después del ticket seller de MP
     if (mesaPrint) {
@@ -228,7 +242,13 @@
     showScan();
     if (scanStatus) {
       scanStatus.textContent =
-        'Cobro de ' + mesaTxt + ' listo. Escanea el QR del siguiente cliente…';
+        tipNum > 0
+          ? 'Cobro de ' +
+            mesaTxt +
+            ' listo (propina ' +
+            formatMoney(tipNum) +
+            '). Escanea el siguiente QR…'
+          : 'Cobro de ' + mesaTxt + ' listo. Escanea el QR del siguiente cliente…';
     }
   }
 
@@ -252,7 +272,10 @@
               ' · Esperando pago en la terminal…';
           }
           if (data.paid) {
-            marcarPagadoPoint();
+            marcarPagadoPoint({
+              tipAmount: data.tipAmount,
+              paidAmount: data.paidAmount,
+            });
           }
           if (
             data.status === 'canceled' ||
