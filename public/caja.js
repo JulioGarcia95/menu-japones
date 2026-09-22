@@ -180,14 +180,33 @@
     orderIdActual = null;
     setCancelVisible(false);
     setImprimirVisible(true);
+
+    var mesaTxt =
+      (cuentaActual && cuentaActual.mesa) ||
+      (mesaLabel && mesaLabel.textContent) ||
+      'la mesa';
+    var totalTxt =
+      (cuentaActual && formatMoney(cuentaActual.total)) ||
+      (totalEl && totalEl.textContent) ||
+      '';
+
     if (statusEl) {
-      statusEl.textContent = 'Pago aprobado. Imprimiendo ticket de consumo…';
+      statusEl.textContent =
+        'Cobro completado · ' + mesaTxt + (totalTxt ? ' · ' + totalTxt : '');
     }
     if (pagarPointBtn) {
       pagarPointBtn.disabled = true;
       pagarPointBtn.textContent = 'Pagado en Point';
     }
     if (totalEl) totalEl.textContent = formatMoney(0);
+
+    alert(
+      'Cobro completado\n\n' +
+        mesaTxt +
+        (totalTxt ? '\nTotal: ' + totalTxt : '') +
+        '\n\nEl pago se aprobó en Point Smart.'
+    );
+
     // Esperar a que termine el ticket seller de MP y exista la cuenta guardada
     window.setTimeout(imprimirConsumoAhora, 4000);
   }
