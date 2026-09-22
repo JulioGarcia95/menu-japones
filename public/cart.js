@@ -45,7 +45,7 @@
   var DISH_OPTIONS = {
     ramen: {
       title: 'Ramen',
-      extraDoble: 15,
+      extraDoble: 0,
       groups: [
         {
           key: 'alga',
