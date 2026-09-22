@@ -137,20 +137,16 @@
     startScanner();
   }
 
-  function imprimirConsumoAhora() {
-    if (!cuentaActual || !imprimirConsumoBtn) return;
-    setImprimirVisible(true);
-    imprimirConsumoBtn.disabled = true;
-    imprimirConsumoBtn.textContent = 'Imprimiendo…';
-    if (statusEl) {
-      statusEl.textContent = 'Enviando ticket de consumo al Point…';
+  function imprimirConsumoMesa(mesa, done) {
+    if (!mesa) {
+      if (done) done();
+      return;
     }
-
     fetch('/api/cuenta/point/print-consumo', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mesa: cuentaActual.mesa }),
+      body: JSON.stringify({ mesa: mesa }),
     })
       .then(function (res) {
         return res.json().then(function (data) {
@@ -159,19 +155,10 @@
         });
       })
       .then(function () {
-        imprimirConsumoBtn.disabled = false;
-        imprimirConsumoBtn.textContent = 'Imprimir ticket de consumo';
-        if (statusEl) {
-          statusEl.textContent =
-            'Ticket de consumo enviado. Si no sale papel, pulsa el botón de nuevo o pide a Mercado Pago habilitar impresiones custom.';
-        }
+        if (done) done(null);
       })
       .catch(function (err) {
-        imprimirConsumoBtn.disabled = false;
-        imprimirConsumoBtn.textContent = 'Imprimir ticket de consumo';
-        var msg = err.message || 'No se pudo imprimir el ticket de consumo';
-        if (statusEl) statusEl.textContent = msg;
-        alert(msg);
+        if (done) done(err);
       });
   }
 
@@ -179,7 +166,6 @@
     stopPoll();
     orderIdActual = null;
     setCancelVisible(false);
-    setImprimirVisible(true);
 
     var mesaTxt =
       (cuentaActual && cuentaActual.mesa) ||
@@ -189,11 +175,8 @@
       (cuentaActual && formatMoney(cuentaActual.total)) ||
       (totalEl && totalEl.textContent) ||
       '';
+    var mesaPrint = cuentaActual && cuentaActual.mesa;
 
-    if (statusEl) {
-      statusEl.textContent =
-        'Cobro completado · ' + mesaTxt + (totalTxt ? ' · ' + totalTxt : '');
-    }
     if (pagarPointBtn) {
       pagarPointBtn.disabled = true;
       pagarPointBtn.textContent = 'Pagado en Point';
@@ -204,11 +187,29 @@
       'Cobro completado\n\n' +
         mesaTxt +
         (totalTxt ? '\nTotal: ' + totalTxt : '') +
-        '\n\nEl pago se aprobó en Point Smart.'
+        '\n\nEl pago se aprobó en Point Smart.\nListo para el siguiente cliente.'
     );
 
-    // Esperar a que termine el ticket seller de MP y exista la cuenta guardada
-    window.setTimeout(imprimirConsumoAhora, 4000);
+    // Cámara lista para el siguiente QR
+    showScan();
+    if (scanStatus) {
+      scanStatus.textContent =
+        'Cobro de ' + mesaTxt + ' listo. Escanea el QR del siguiente cliente…';
+    }
+
+    // Ticket de consumo en segundo plano (no bloquea la cámara)
+    if (mesaPrint) {
+      window.setTimeout(function () {
+        imprimirConsumoMesa(mesaPrint, function (err) {
+          if (err && scanStatus) {
+            scanStatus.textContent =
+              'Siguiente cliente: escanea el QR. (Ticket: ' +
+              (err.message || 'no se imprimió') +
+              ')';
+          }
+        });
+      }, 3000);
+    }
   }
 
   function pollPointOrder(orderId) {
