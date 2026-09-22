@@ -236,7 +236,7 @@
     }
     showToast(toastMsg);
 
-    // Consumo se encola a los 2 s; en el Point sale al tocar Inicio.
+    // Solo un ticket: el de consumo (sin ticket de MP).
     showScan();
     if (scanStatus) {
       scanStatus.textContent =
@@ -245,10 +245,10 @@
             mesaTxt +
             ' listo (propina ' +
             formatMoney(tipNum) +
-            '). En ~2 s se envía el consumo; toca Inicio en el Point.'
+            '). Toca Inicio en el Point para el ticket de consumo.'
           : 'Cobro de ' +
             mesaTxt +
-            ' listo. En ~2 s se envía el consumo; toca Inicio en el Point.';
+            ' listo. Toca Inicio en el Point para el ticket de consumo.';
     }
   }
 

@@ -1519,9 +1519,8 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
     config: {
       point: {
         terminal_id: terminalId,
-        // Ticket MP al cobrar. El de consumo (custom) solo sale
-        // cuando el Point vuelve a Inicio / queda libre.
-        print_on_terminal: 'seller_ticket',
+        // Solo el ticket de consumo (custom). Sin ticket de MP.
+        print_on_terminal: 'no_ticket',
       },
     },
   };
