@@ -684,7 +684,7 @@ function finalizarCuentaMesa(mesa, metodoPago, extras) {
   };
   guardarMesas(mesas);
 
-  // Ticket de consumo al aprobar (sin esperar ticket de MP).
+  // Consumo a los 2 s (sale en el Point al tocar Inicio / liberar pantalla).
   if (metodoPago === 'point' && deMesa.length) {
     var pedidosTicket = deMesa.map(function (p) {
       return {
@@ -696,7 +696,7 @@ function finalizarCuentaMesa(mesa, metodoPago, extras) {
       };
     });
     imprimirConsumoPoint(mesa, pedidosTicket, total, {
-      delayMs: 0,
+      delayMs: 2000,
       closedAt: ahora,
     }).then(function (r) {
       if (r && r.ok) {
