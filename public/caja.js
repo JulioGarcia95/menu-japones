@@ -10,6 +10,7 @@
   var body = document.getElementById('caja-body');
   var pagarPointBtn = document.getElementById('caja-pagar-point');
   var cancelarPointBtn = document.getElementById('caja-cancelar-point');
+  var imprimirConsumoBtn = document.getElementById('caja-imprimir-consumo');
   var nuevaBtn = document.getElementById('caja-nueva');
   var readerEl = document.getElementById('caja-reader');
 
@@ -58,10 +59,20 @@
     }
   }
 
+  function setImprimirVisible(visible) {
+    if (!imprimirConsumoBtn) return;
+    imprimirConsumoBtn.hidden = !visible;
+    imprimirConsumoBtn.disabled = !visible;
+    if (visible) {
+      imprimirConsumoBtn.textContent = 'Imprimir ticket de consumo';
+    }
+  }
+
   function showCuenta(data) {
     cuentaActual = data;
     orderIdActual = null;
     setCancelVisible(false);
+    setImprimirVisible(false);
     scanSection.hidden = true;
     cuentaSection.hidden = false;
     stopScanner();
@@ -114,6 +125,7 @@
     cuentaActual = null;
     orderIdActual = null;
     setCancelVisible(false);
+    setImprimirVisible(false);
     cuentaSection.hidden = true;
     scanSection.hidden = false;
     if (statusEl) statusEl.textContent = '';
@@ -129,8 +141,10 @@
     stopPoll();
     orderIdActual = null;
     setCancelVisible(false);
+    setImprimirVisible(true);
     if (statusEl) {
-      statusEl.textContent = 'Pago aprobado en Point. Mesa cerrada.';
+      statusEl.textContent =
+        'Pago aprobado. En unos segundos se imprime el ticket de consumo. Si no sale, usa el botón.';
     }
     if (pagarPointBtn) {
       pagarPointBtn.disabled = true;
@@ -387,6 +401,44 @@
               err.message || 'No se pudo cancelar. Intenta en el Point.';
           }
           alert(err.message || 'No se pudo cancelar el cobro');
+        });
+    });
+  }
+
+  if (imprimirConsumoBtn) {
+    imprimirConsumoBtn.addEventListener('click', function () {
+      if (!cuentaActual) return;
+      imprimirConsumoBtn.disabled = true;
+      imprimirConsumoBtn.textContent = 'Imprimiendo…';
+      if (statusEl) statusEl.textContent = 'Enviando ticket de consumo al Point…';
+
+      fetch('/api/cuenta/point/print-consumo', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mesa: cuentaActual.mesa }),
+      })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            if (!res.ok || !data.ok) throw new Error(data.error || 'Error');
+            return data;
+          });
+        })
+        .then(function () {
+          imprimirConsumoBtn.disabled = false;
+          imprimirConsumoBtn.textContent = 'Imprimir ticket de consumo';
+          if (statusEl) {
+            statusEl.textContent =
+              'Ticket de consumo enviado al Point. Revisa la impresora.';
+          }
+        })
+        .catch(function (err) {
+          imprimirConsumoBtn.disabled = false;
+          imprimirConsumoBtn.textContent = 'Imprimir ticket de consumo';
+          if (statusEl) {
+            statusEl.textContent = err.message || 'No se pudo imprimir';
+          }
+          alert(err.message || 'No se pudo imprimir el ticket de consumo');
         });
     });
   }

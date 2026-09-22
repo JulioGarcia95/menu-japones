@@ -341,7 +341,7 @@ function nuevoIdempotencyKey() {
 function truncarTicket(texto, max) {
   var s = String(texto || '').replace(/[{}]/g, '');
   if (s.length <= max) return s;
-  return s.slice(0, Math.max(0, max - 1)) + '…';
+  return s.slice(0, Math.max(0, max - 3)) + '...';
 }
 
 function formatoMontoTicket(n) {
@@ -356,6 +356,7 @@ function fechaTicketCorta(iso) {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
     });
   } catch (e) {
     return '';
@@ -364,63 +365,50 @@ function fechaTicketCorta(iso) {
 
 function armarContenidoTicketConsumo(mesa, pedidos, total) {
   var ahora = fechaTicketCorta();
-  var lineas = [];
+  var parts = [];
 
   // Encabezado
-  lineas.push('{br}');
-  lineas.push('{center}{w}Matilda Kitchen{/w}{/center}{br}');
-  lineas.push('{center}{s}Cocina japonesa{/s}{/center}{br}');
-  lineas.push('{br}');
-  lineas.push('{center}Gracias por su visita{/center}{br}');
-  lineas.push('{br}');
-  lineas.push('{center}--------------------------------{/center}{br}');
-  lineas.push(
-    '{center}{b}' + truncarTicket(mesa, 24) + '{/b}{/center}{br}'
-  );
+  parts.push('{br}');
+  parts.push('{center}{w}Matilda Kitchen{/w}{/center}{br}');
+  parts.push('{center}{s}Cocina japonesa{/s}{/center}{br}');
+  parts.push('{br}');
+  parts.push('{center}Gracias por su visita{/center}{br}');
+  parts.push('{br}');
+  parts.push('--------------------------------{br}');
+  parts.push('{center}{b}' + truncarTicket(mesa, 24) + '{/b}{/center}{br}');
   if (ahora) {
-    lineas.push('{center}{s}' + ahora + '{/s}{/center}{br}');
+    parts.push('{center}{s}' + ahora + '{/s}{/center}{br}');
   }
-  lineas.push('{center}--------------------------------{/center}{br}');
-  lineas.push('{center}{b}Detalle de consumo{/b}{/center}{br}');
-  lineas.push('{br}');
+  parts.push('--------------------------------{br}');
+  parts.push('{center}{b}Detalle de consumo{/b}{/center}{br}');
+  parts.push('{br}');
 
   (pedidos || []).forEach(function (pedido) {
     (pedido.items || []).forEach(function (item) {
       var qty = Math.max(1, Number(item.qty) || 1);
       var price = Number(item.price) || 0;
       var sub = qty * price;
-      var nombre = truncarTicket(item.name || 'Platillo', 20);
-      lineas.push(
-        '{s}' +
-          qty +
-          ' x ' +
-          nombre +
-          '{/s}{br}'
-      );
-      lineas.push(
-        '{s}     ' + formatoMontoTicket(sub) + '{/s}{br}'
-      );
+      var nombre = truncarTicket(item.name || 'Platillo', 22);
+      parts.push('{s}' + qty + ' x ' + nombre + '{/s}{br}');
+      parts.push('{s}    ' + formatoMontoTicket(sub) + '{/s}{br}');
     });
   });
 
-  lineas.push('{br}');
-  lineas.push('{center}--------------------------------{/center}{br}');
-  lineas.push(
+  parts.push('{br}');
+  parts.push('--------------------------------{br}');
+  parts.push(
     '{center}{b}TOTAL  ' + formatoMontoTicket(total) + '{/b}{/center}{br}'
   );
-  lineas.push('{center}--------------------------------{/center}{br}');
-  lineas.push('{br}');
+  parts.push('--------------------------------{br}');
+  parts.push('{br}');
+  parts.push('{center}{b}Vuelve pronto{/b}{/center}{br}');
+  parts.push('{center}{s}Fue un placer atenderte{/s}{/center}{br}');
+  parts.push('{br}');
+  parts.push('{center}{s}Matilda Kitchen{/s}{/center}{br}');
+  parts.push('{br}{br}');
 
-  // Cierre
-  lineas.push('{center}{b}Vuelve pronto{/b}{/center}{br}');
-  lineas.push('{center}{s}Fue un placer atenderte{/s}{/center}{br}');
-  lineas.push('{br}');
-  lineas.push('{center}{s}Matilda Kitchen{/s}{/center}{br}');
-  lineas.push('{br}{br}');
-
-  var content = lineas.join('');
-  // MP exige mínimo 100 caracteres (incluye tags)
-  while (content.length < 100) {
+  var content = parts.join('');
+  while (content.length < 120) {
     content += '{br}';
   }
   if (content.length > 4096) {
@@ -429,68 +417,106 @@ function armarContenidoTicketConsumo(mesa, pedidos, total) {
   return content;
 }
 
-function imprimirConsumoPoint(mesa, pedidos, total) {
-  var token = mpAccessToken();
-  var terminalId = pointTerminalId();
-  if (!token || !terminalId) {
-    return Promise.resolve({ ok: false, reason: 'sin token o terminal' });
+function ultimaCuentaMesa(mesa) {
+  var cuentas = leerCuentas();
+  for (var i = cuentas.length - 1; i >= 0; i--) {
+    if (cuentas[i] && cuentas[i].mesa === mesa) return cuentas[i];
   }
-  if (!pedidos || !pedidos.length) {
-    return Promise.resolve({ ok: false, reason: 'sin pedidos' });
-  }
+  return null;
+}
 
-  var content = armarContenidoTicketConsumo(mesa, pedidos, total);
-  var externalRef = (
-    'consumo-' +
-    String(mesa || '').replace(/\s+/g, '') +
-    '-' +
-    Date.now().toString(36)
-  ).slice(0, 64);
+function imprimirConsumoPoint(mesa, pedidos, total, opts) {
+  opts = opts || {};
+  var delayMs = Number(opts.delayMs);
+  if (!Number.isFinite(delayMs) || delayMs < 0) delayMs = 0;
 
-  return fetch('https://api.mercadopago.com/terminals/v1/actions', {
-    method: 'POST',
-    headers: {
-      Authorization: 'Bearer ' + token,
-      'Content-Type': 'application/json',
-      'X-Idempotency-Key': nuevoIdempotencyKey(),
-    },
-    body: JSON.stringify({
-      type: 'print',
-      external_reference: externalRef,
-      config: {
-        point: {
-          terminal_id: terminalId,
-          subtype: 'custom',
-        },
+  var run = function () {
+    var token = mpAccessToken();
+    var terminalId = pointTerminalId();
+    if (!token || !terminalId) {
+      console.error('Print consumo: falta token o POINT_TERMINAL_ID');
+      return Promise.resolve({ ok: false, error: 'Falta token o terminal Point' });
+    }
+    if (!pedidos || !pedidos.length) {
+      return Promise.resolve({ ok: false, error: 'No hay consumo para imprimir' });
+    }
+
+    var content = armarContenidoTicketConsumo(mesa, pedidos, total);
+    var externalRef = (
+      'consumo-' +
+      String(mesa || '').replace(/\s+/g, '') +
+      '-' +
+      Date.now().toString(36)
+    ).slice(0, 64);
+
+    console.log('--- Enviando ticket consumo Point ---');
+    console.log('Mesa:', mesa);
+    console.log('Terminal:', terminalId);
+    console.log('Chars:', content.length);
+    console.log('------------------------------------');
+
+    return fetch('https://api.mercadopago.com/terminals/v1/actions', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'X-Idempotency-Key': nuevoIdempotencyKey(),
       },
-      content: content,
-    }),
-  })
-    .then(function (mpRes) {
-      return mpRes.json().then(function (data) {
-        if (!mpRes.ok) {
-          var msg =
-            (data && data.message) ||
-            (data && data.error) ||
-            (Array.isArray(data) && JSON.stringify(data)) ||
-            'No se pudo imprimir el consumo';
-          throw new Error(msg);
-        }
-        console.log('--- Ticket consumo Point ---');
-        console.log('Mesa:', mesa);
-        console.log('Action:', data.id || '(sin id)');
-        console.log('Status:', data.status || 'created');
-        console.log('----------------------------');
-        return { ok: true, id: data.id, status: data.status };
-      });
+      body: JSON.stringify({
+        type: 'print',
+        external_reference: externalRef,
+        config: {
+          point: {
+            terminal_id: terminalId,
+            subtype: 'custom',
+          },
+        },
+        content: content,
+      }),
     })
-    .catch(function (err) {
-      console.error(
-        'Error imprimiendo consumo Point:',
-        err.message || err
-      );
-      return { ok: false, error: err.message || String(err) };
+      .then(function (mpRes) {
+        return mpRes.text().then(function (raw) {
+          var data = {};
+          try {
+            data = raw ? JSON.parse(raw) : {};
+          } catch (e) {
+            data = { raw: raw };
+          }
+          if (!mpRes.ok) {
+            var msg =
+              (data && data.message) ||
+              (data && data.error) ||
+              (Array.isArray(data) && JSON.stringify(data)) ||
+              (data && data.raw) ||
+              'HTTP ' + mpRes.status;
+            console.error('Print consumo MP error:', mpRes.status, raw);
+            throw new Error(String(msg));
+          }
+          console.log('--- Ticket consumo enviado ---');
+          console.log('Action:', data.id || '(sin id)');
+          console.log('Status:', data.status || 'created');
+          console.log('------------------------------');
+          return {
+            ok: true,
+            id: data.id,
+            status: data.status || 'created',
+          };
+        });
+      })
+      .catch(function (err) {
+        console.error('Error imprimiendo consumo Point:', err.message || err);
+        return { ok: false, error: err.message || String(err) };
+      });
+  };
+
+  if (delayMs > 0) {
+    return new Promise(function (resolve) {
+      setTimeout(function () {
+        run().then(resolve);
+      }, delayMs);
     });
+  }
+  return run();
 }
 
 function finalizarCuentaMesa(mesa, metodoPago) {
@@ -556,9 +582,9 @@ function finalizarCuentaMesa(mesa, metodoPago) {
   };
   guardarMesas(mesas);
 
-  // Ticket de consumo en Point (además del ticket seller de MP)
+  // Ticket de consumo: espera a que el Point termine el ticket seller
   if (metodoPago === 'point' && deMesa.length) {
-    imprimirConsumoPoint(mesa, deMesa, total);
+    imprimirConsumoPoint(mesa, deMesa, total, { delayMs: 7000 });
   }
 
   return {
@@ -1568,6 +1594,50 @@ app.post('/api/cuenta/point/cancel', requireAreas(['caja', 'admin']), function (
       });
     });
 });
+
+app.post(
+  '/api/cuenta/point/print-consumo',
+  requireAreas(['caja', 'admin']),
+  function (req, res) {
+    var mesa = normalizarMesa((req.body && req.body.mesa) || '');
+    if (!mesa) {
+      return res.status(400).json({ ok: false, error: 'Mesa inválida' });
+    }
+
+    var cuenta = ultimaCuentaMesa(mesa);
+    if (!cuenta || !(cuenta.pedidos || []).length) {
+      return res.status(404).json({
+        ok: false,
+        error: 'No hay una cuenta reciente de esa mesa para imprimir',
+      });
+    }
+
+    imprimirConsumoPoint(mesa, cuenta.pedidos, cuenta.total, { delayMs: 0 })
+      .then(function (result) {
+        if (!result || !result.ok) {
+          return res.status(502).json({
+            ok: false,
+            error:
+              (result && result.error) ||
+              'No se pudo enviar la impresión al Point. Si el cobro sí imprime, pide a Mercado Pago habilitar impresiones custom en la terminal.',
+          });
+        }
+        res.json({
+          ok: true,
+          mesa: mesa,
+          actionId: result.id,
+          status: result.status,
+          total: cuenta.total,
+        });
+      })
+      .catch(function (err) {
+        res.status(502).json({
+          ok: false,
+          error: err.message || 'Error al imprimir consumo',
+        });
+      });
+  }
+);
 
 app.post('/api/cuenta/mercadopago', requireAreas(['caja', 'admin']), function (req, res) {
   var token = mpAccessToken();
