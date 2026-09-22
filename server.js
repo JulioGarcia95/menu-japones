@@ -1358,11 +1358,18 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
   });
   guardarMesas(mesas);
 
+  // MP exige external_reference único en cada cobro
+  var externalRef = (
+    String(mesa).replace(/\s+/g, '') +
+    '-' +
+    Date.now().toString(36)
+  ).slice(0, 64);
+
   var body = {
     type: 'point',
-    external_reference: mesa,
+    external_reference: externalRef,
     expiration_time: 'PT16M',
-    description: 'Cuenta ' + mesa + ' — Matilda Kitchen',
+    description: 'Cuenta ' + mesa + ' - Matilda Kitchen',
     transactions: {
       payments: [{ amount: amount }],
     },
@@ -1370,6 +1377,8 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
       point: {
         terminal_id: terminalId,
         print_on_terminal: 'seller_ticket',
+        // Evita que la pantalla se cancele a los 15s mientras “piensa”
+        screen_time: 'PT5M',
       },
     },
   };
@@ -1402,6 +1411,7 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
       var mesas2 = leerMesas();
       var info = mesas2[mesa] || {};
       info.pointOrderId = orderId;
+      info.pointExternalRef = externalRef;
       info.pointPending = true;
       mesas2[mesa] = info;
       guardarMesas(mesas2);
@@ -1410,6 +1420,7 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
       console.log('Mesa:', mesa);
       console.log('Total: $' + amount);
       console.log('Order:', orderId);
+      console.log('ExtRef:', externalRef);
       console.log('Terminal:', terminalId);
       console.log('--------------------');
 
@@ -1559,13 +1570,15 @@ function cancelarOrderPointPorId(orderId) {
 
 function buscarOrdersPointMesa(mesa) {
   var token = mpAccessToken();
-  if (!token || !mesa) {
+  if (!token) {
     return Promise.resolve([]);
   }
 
+  var begin = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
   var url =
-    'https://api.mercadopago.com/v1/orders?type=point&external_reference=' +
-    encodeURIComponent(mesa);
+    'https://api.mercadopago.com/v1/orders?type=point&begin_date=' +
+    encodeURIComponent(begin) +
+    '&limit=50';
 
   return fetch(url, {
     headers: { Authorization: 'Bearer ' + token },
@@ -1574,14 +1587,35 @@ function buscarOrdersPointMesa(mesa) {
       return mpRes.json().then(function (data) {
         if (!mpRes.ok) {
           console.error('Buscar orders Point:', mpRes.status, data);
-          return [];
+          // Fallback: buscar por external_reference exacto (formato viejo = solo mesa)
+          if (!mesa) return [];
+          return fetch(
+            'https://api.mercadopago.com/v1/orders?type=point&external_reference=' +
+              encodeURIComponent(mesa),
+            { headers: { Authorization: 'Bearer ' + token } }
+          ).then(function (r2) {
+            return r2.json().then(function (d2) {
+              if (!r2.ok) return [];
+              if (Array.isArray(d2)) return d2;
+              if (d2 && Array.isArray(d2.data)) return d2.data;
+              if (d2 && Array.isArray(d2.results)) return d2.results;
+              if (d2 && d2.id) return [d2];
+              return [];
+            });
+          });
         }
         var list = [];
         if (Array.isArray(data)) list = data;
         else if (data && Array.isArray(data.data)) list = data.data;
         else if (data && Array.isArray(data.results)) list = data.results;
         else if (data && data.id) list = [data];
-        return list;
+
+        if (!mesa) return list;
+        var pref = String(mesa).replace(/\s+/g, '');
+        return list.filter(function (o) {
+          var ref = String((o && o.external_reference) || '');
+          return ref === mesa || ref === pref || ref.indexOf(pref + '-') === 0;
+        });
       });
     })
     .catch(function (err) {
@@ -1607,8 +1641,7 @@ function liberarCobrosPointMesa(mesa, orderIdHint) {
           o.id &&
           (st === 'created' ||
             st === 'at_terminal' ||
-            st === 'action_required' ||
-            st === 'expired')
+            st === 'action_required')
         ) {
           ids[String(o.id)] = true;
         }
@@ -1633,6 +1666,7 @@ function liberarCobrosPointMesa(mesa, orderIdHint) {
         var info2 = mesas2[mesa] || {};
         info2.pointPending = false;
         info2.pointOrderId = null;
+        info2.pointExternalRef = null;
         mesas2[mesa] = info2;
         guardarMesas(mesas2);
       }
