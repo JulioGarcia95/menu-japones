@@ -175,7 +175,6 @@
       (cuentaActual && formatMoney(cuentaActual.total)) ||
       (totalEl && totalEl.textContent) ||
       '';
-    var mesaPrint = cuentaActual && cuentaActual.mesa;
 
     if (pagarPointBtn) {
       pagarPointBtn.disabled = true;
@@ -195,20 +194,6 @@
     if (scanStatus) {
       scanStatus.textContent =
         'Cobro de ' + mesaTxt + ' listo. Escanea el QR del siguiente cliente…';
-    }
-
-    // Ticket de consumo en segundo plano (no bloquea la cámara)
-    if (mesaPrint) {
-      window.setTimeout(function () {
-        imprimirConsumoMesa(mesaPrint, function (err) {
-          if (err && scanStatus) {
-            scanStatus.textContent =
-              'Siguiente cliente: escanea el QR. (Ticket: ' +
-              (err.message || 'no se imprimió') +
-              ')';
-          }
-        });
-      }, 3000);
     }
   }
 

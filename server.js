@@ -596,8 +596,13 @@ function finalizarCuentaMesa(mesa, metodoPago) {
   };
   guardarMesas(mesas);
 
-  // El ticket de consumo lo dispara Caja al confirmar el pago
-  // (evita imprimir dos veces / con datos viejos)
+  // Justo después del ticket seller de MP (~1.5s)
+  if (metodoPago === 'point' && deMesa.length) {
+    imprimirConsumoPoint(mesa, deMesa, total, {
+      delayMs: 1500,
+      closedAt: ahora,
+    });
+  }
 
   return {
     mesa: mesa,
