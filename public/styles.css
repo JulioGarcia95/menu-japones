@@ -1200,6 +1200,14 @@ body.success-open {
   line-height: 1.25;
 }
 
+.admin-tip {
+  display: inline-block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--mute);
+  font-weight: 500;
+}
+
 .pagar-hint {
   margin: 0.75rem 0 0;
   color: var(--mute);

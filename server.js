@@ -725,10 +725,8 @@ function fechaLocalISO(iso) {
   try {
     var d = new Date(iso);
     if (Number.isNaN(d.getTime())) return null;
-    var y = d.getFullYear();
-    var m = String(d.getMonth() + 1).padStart(2, '0');
-    var day = String(d.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + day;
+    // Siempre día de negocio en CDMX (Render corre en UTC)
+    return d.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
   } catch (e) {
     return null;
   }
@@ -2166,7 +2164,9 @@ app.get('/api/admin/cuentas', requireAreas(['admin']), function (req, res) {
     });
 
   var totalDia = cuentas.reduce(function (sum, c) {
-    return sum + (Number(c.total) || 0);
+    var base = Number(c.total) || 0;
+    var tip = Number(c.tipAmount) || 0;
+    return sum + base + tip;
   }, 0);
 
   res.json({
@@ -2174,6 +2174,12 @@ app.get('/api/admin/cuentas', requireAreas(['admin']), function (req, res) {
     fecha: fecha,
     cuentas: cuentas,
     totalDia: totalDia,
+    totalCuentas: cuentas.reduce(function (sum, c) {
+      return sum + (Number(c.total) || 0);
+    }, 0),
+    totalPropinas: cuentas.reduce(function (sum, c) {
+      return sum + (Number(c.tipAmount) || 0);
+    }, 0),
     metodos: METODOS_PAGO,
   });
 });
