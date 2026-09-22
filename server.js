@@ -502,7 +502,7 @@ function enviarAccionPrintPoint(
             'Print ' + subtype + ' ocupado, reintento ' + (intento + 1) + '…',
             msg
           );
-          return esperarMs(2500 * intento).then(function () {
+          return esperarMs(800 * intento).then(function () {
             return enviarAccionPrintPoint(
               terminalId,
               token,
@@ -696,7 +696,7 @@ function finalizarCuentaMesa(mesa, metodoPago, extras) {
       };
     });
     imprimirConsumoPoint(mesa, pedidosTicket, total, {
-      delayMs: 2000,
+      delayMs: 0,
       closedAt: ahora,
     }).then(function (r) {
       if (r && r.ok) {

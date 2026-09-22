@@ -236,8 +236,7 @@
     }
     showToast(toastMsg);
 
-    // El servidor imprime el consumo ~2 s después del pago.
-    // Cámara lista para el siguiente QR.
+    // El servidor imprime el consumo al instante tras el pago.
     showScan();
     if (scanStatus) {
       scanStatus.textContent =
@@ -297,7 +296,7 @@
           }
         })
         .catch(function () {});
-    }, 1000);
+    }, 600);
   }
 
   function cargarCuenta(mesa, token) {
