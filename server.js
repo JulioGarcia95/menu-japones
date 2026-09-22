@@ -450,7 +450,29 @@ function leerLogoTicketBase64() {
   }
 }
 
-function enviarAccionPrintPoint(terminalId, token, subtype, content, externalRef) {
+function sanitizarExternalRefPrint(ref) {
+  return String(ref || 'print')
+    .replace(/[^A-Za-z0-9_-]/g, '')
+    .slice(0, 64) || 'print';
+}
+
+function esperarMs(ms) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve, ms);
+  });
+}
+
+function enviarAccionPrintPoint(
+  terminalId,
+  token,
+  subtype,
+  content,
+  externalRef,
+  intento,
+  maxIntentos
+) {
+  intento = Number(intento) || 1;
+  maxIntentos = Number(maxIntentos) || 4;
   return fetch('https://api.mercadopago.com/terminals/v1/actions', {
     method: 'POST',
     headers: {
@@ -460,7 +482,7 @@ function enviarAccionPrintPoint(terminalId, token, subtype, content, externalRef
     },
     body: JSON.stringify({
       type: 'print',
-      external_reference: String(externalRef || '').slice(0, 64),
+      external_reference: sanitizarExternalRefPrint(externalRef),
       config: {
         point: {
           terminal_id: terminalId,
@@ -484,7 +506,29 @@ function enviarAccionPrintPoint(terminalId, token, subtype, content, externalRef
           (Array.isArray(data) && JSON.stringify(data)) ||
           (data && data.raw) ||
           'HTTP ' + mpRes.status;
-        throw new Error(String(msg));
+        msg = String(msg);
+        // Terminal ocupada (ticket seller u otra acción): reintentar
+        if (
+          intento < maxIntentos &&
+          /already_queued|busy|in.?progress|conflict|429/i.test(msg)
+        ) {
+          console.warn(
+            'Print ' + subtype + ' ocupado, reintento ' + (intento + 1) + '…',
+            msg
+          );
+          return esperarMs(2500 * intento).then(function () {
+            return enviarAccionPrintPoint(
+              terminalId,
+              token,
+              subtype,
+              content,
+              externalRef + '-r' + (intento + 1),
+              intento + 1,
+              maxIntentos
+            );
+          });
+        }
+        throw new Error(msg);
       }
       return {
         ok: true,
@@ -522,6 +566,7 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
 
     var content = armarContenidoTicketConsumo(mesa, pedidos, total, closedAt);
     var stamp = Date.now().toString(36);
+    var mesaKey = String(mesa || '').replace(/\s+/g, '');
     var logoB64 = leerLogoTicketBase64();
 
     console.log('--- Enviando ticket consumo Point ---');
@@ -531,46 +576,61 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     console.log('Chars:', content.length);
     console.log('------------------------------------');
 
-    var cadena = Promise.resolve({ ok: true });
-
-    // 1) Logo de la perrita (imagen B/N)
+    // Logo primero (bonito), pero NUNCA bloquea el texto del consumo.
+    var logoPaso = Promise.resolve({ logo: false });
     if (logoB64) {
-      cadena = enviarAccionPrintPoint(
+      logoPaso = enviarAccionPrintPoint(
         terminalId,
         token,
         'image',
         logoB64,
-        ('logo-' + String(mesa || '').replace(/\s+/g, '') + '-' + stamp).slice(0, 64)
-      ).then(function (r) {
-        console.log('Logo ticket enviado:', r.id || '(sin id)');
-        return r;
-      });
+        'logo-' + mesaKey + '-' + stamp,
+        1,
+        2
+      )
+        .then(function (logoRes) {
+          console.log('Logo ticket enviado:', logoRes.id || '(sin id)');
+          return { logo: true, logoId: logoRes.id };
+        })
+        .catch(function (logoErr) {
+          console.warn(
+            'Logo ticket omitido, sigo con texto:',
+            logoErr.message || logoErr
+          );
+          return {
+            logo: false,
+            logoError: logoErr.message || String(logoErr),
+          };
+        })
+        .then(function (info) {
+          return esperarMs(1500).then(function () {
+            return info;
+          });
+        });
     }
 
-    // 2) Texto del consumo
-    return cadena
-      .then(function () {
+    return logoPaso
+      .then(function (logoInfo) {
         return enviarAccionPrintPoint(
           terminalId,
           token,
           'custom',
           content,
-          ('consumo-' + String(mesa || '').replace(/\s+/g, '') + '-' + stamp).slice(
-            0,
-            64
-          )
-        );
-      })
-      .then(function (data) {
-        console.log('--- Ticket consumo enviado ---');
-        console.log('Action:', data.id || '(sin id)');
-        console.log('Status:', data.status || 'created');
-        console.log('------------------------------');
-        return {
-          ok: true,
-          id: data.id,
-          status: data.status || 'created',
-        };
+          'consumo-' + mesaKey + '-' + stamp
+        ).then(function (data) {
+          console.log('--- Ticket consumo enviado ---');
+          console.log('Action:', data.id || '(sin id)');
+          console.log('Status:', data.status || 'created');
+          console.log('Logo:', logoInfo && logoInfo.logo ? 'si' : 'no');
+          console.log('------------------------------');
+          return {
+            ok: true,
+            id: data.id,
+            status: data.status || 'created',
+            logo: !!(logoInfo && logoInfo.logo),
+            logoError: logoInfo && logoInfo.logoError,
+          };
+        });
       })
       .catch(function (err) {
         console.error('Error imprimiendo consumo Point:', err.message || err);

@@ -224,7 +224,8 @@
     }
     showToast(toastMsg);
 
-    // Consumo justo después del ticket seller de MP
+    // Esperar a que termine el ticket seller de MP; si el Point sigue
+    // ocupado el server reintenta. El logo no bloquea el texto.
     if (mesaPrint) {
       window.setTimeout(function () {
         imprimirConsumoMesa(mesaPrint, pedidosPrint, totalNum, function (err) {
@@ -235,7 +236,7 @@
               ')';
           }
         });
-      }, 2000);
+      }, 4500);
     }
 
     // Cámara lista para el siguiente QR (sin alert bloqueante)
