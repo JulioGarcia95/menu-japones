@@ -338,6 +338,161 @@ function nuevoIdempotencyKey() {
   return crypto.randomBytes(16).toString('hex');
 }
 
+function truncarTicket(texto, max) {
+  var s = String(texto || '').replace(/[{}]/g, '');
+  if (s.length <= max) return s;
+  return s.slice(0, Math.max(0, max - 1)) + '…';
+}
+
+function formatoMontoTicket(n) {
+  return '$' + Number(n || 0).toFixed(2);
+}
+
+function fechaTicketCorta(iso) {
+  try {
+    return new Date(iso || Date.now()).toLocaleString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch (e) {
+    return '';
+  }
+}
+
+function armarContenidoTicketConsumo(mesa, pedidos, total) {
+  var ahora = fechaTicketCorta();
+  var lineas = [];
+
+  // Encabezado
+  lineas.push('{br}');
+  lineas.push('{center}{w}Matilda Kitchen{/w}{/center}{br}');
+  lineas.push('{center}{s}Cocina japonesa{/s}{/center}{br}');
+  lineas.push('{br}');
+  lineas.push('{center}Gracias por su visita{/center}{br}');
+  lineas.push('{br}');
+  lineas.push('{center}--------------------------------{/center}{br}');
+  lineas.push(
+    '{center}{b}' + truncarTicket(mesa, 24) + '{/b}{/center}{br}'
+  );
+  if (ahora) {
+    lineas.push('{center}{s}' + ahora + '{/s}{/center}{br}');
+  }
+  lineas.push('{center}--------------------------------{/center}{br}');
+  lineas.push('{center}{b}Detalle de consumo{/b}{/center}{br}');
+  lineas.push('{br}');
+
+  (pedidos || []).forEach(function (pedido) {
+    (pedido.items || []).forEach(function (item) {
+      var qty = Math.max(1, Number(item.qty) || 1);
+      var price = Number(item.price) || 0;
+      var sub = qty * price;
+      var nombre = truncarTicket(item.name || 'Platillo', 20);
+      lineas.push(
+        '{s}' +
+          qty +
+          ' x ' +
+          nombre +
+          '{/s}{br}'
+      );
+      lineas.push(
+        '{s}     ' + formatoMontoTicket(sub) + '{/s}{br}'
+      );
+    });
+  });
+
+  lineas.push('{br}');
+  lineas.push('{center}--------------------------------{/center}{br}');
+  lineas.push(
+    '{center}{b}TOTAL  ' + formatoMontoTicket(total) + '{/b}{/center}{br}'
+  );
+  lineas.push('{center}--------------------------------{/center}{br}');
+  lineas.push('{br}');
+
+  // Cierre
+  lineas.push('{center}{b}Vuelve pronto{/b}{/center}{br}');
+  lineas.push('{center}{s}Fue un placer atenderte{/s}{/center}{br}');
+  lineas.push('{br}');
+  lineas.push('{center}{s}Matilda Kitchen{/s}{/center}{br}');
+  lineas.push('{br}{br}');
+
+  var content = lineas.join('');
+  // MP exige mínimo 100 caracteres (incluye tags)
+  while (content.length < 100) {
+    content += '{br}';
+  }
+  if (content.length > 4096) {
+    content = content.slice(0, 4090) + '{br}';
+  }
+  return content;
+}
+
+function imprimirConsumoPoint(mesa, pedidos, total) {
+  var token = mpAccessToken();
+  var terminalId = pointTerminalId();
+  if (!token || !terminalId) {
+    return Promise.resolve({ ok: false, reason: 'sin token o terminal' });
+  }
+  if (!pedidos || !pedidos.length) {
+    return Promise.resolve({ ok: false, reason: 'sin pedidos' });
+  }
+
+  var content = armarContenidoTicketConsumo(mesa, pedidos, total);
+  var externalRef = (
+    'consumo-' +
+    String(mesa || '').replace(/\s+/g, '') +
+    '-' +
+    Date.now().toString(36)
+  ).slice(0, 64);
+
+  return fetch('https://api.mercadopago.com/terminals/v1/actions', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json',
+      'X-Idempotency-Key': nuevoIdempotencyKey(),
+    },
+    body: JSON.stringify({
+      type: 'print',
+      external_reference: externalRef,
+      config: {
+        point: {
+          terminal_id: terminalId,
+          subtype: 'custom',
+        },
+      },
+      content: content,
+    }),
+  })
+    .then(function (mpRes) {
+      return mpRes.json().then(function (data) {
+        if (!mpRes.ok) {
+          var msg =
+            (data && data.message) ||
+            (data && data.error) ||
+            (Array.isArray(data) && JSON.stringify(data)) ||
+            'No se pudo imprimir el consumo';
+          throw new Error(msg);
+        }
+        console.log('--- Ticket consumo Point ---');
+        console.log('Mesa:', mesa);
+        console.log('Action:', data.id || '(sin id)');
+        console.log('Status:', data.status || 'created');
+        console.log('----------------------------');
+        return { ok: true, id: data.id, status: data.status };
+      });
+    })
+    .catch(function (err) {
+      console.error(
+        'Error imprimiendo consumo Point:',
+        err.message || err
+      );
+      return { ok: false, error: err.message || String(err) };
+    });
+}
+
 function finalizarCuentaMesa(mesa, metodoPago) {
   var pedidos = leerPedidos();
   var ahora = new Date().toISOString();
@@ -400,6 +555,11 @@ function finalizarCuentaMesa(mesa, metodoPago) {
     payToken: null,
   };
   guardarMesas(mesas);
+
+  // Ticket de consumo en Point (además del ticket seller de MP)
+  if (metodoPago === 'point' && deMesa.length) {
+    imprimirConsumoPoint(mesa, deMesa, total);
+  }
 
   return {
     mesa: mesa,
