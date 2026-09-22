@@ -596,14 +596,6 @@ function finalizarCuentaMesa(mesa, metodoPago) {
   };
   guardarMesas(mesas);
 
-  // Justo después del ticket seller de MP (~1.5s)
-  if (metodoPago === 'point' && deMesa.length) {
-    imprimirConsumoPoint(mesa, deMesa, total, {
-      delayMs: 1500,
-      closedAt: ahora,
-    });
-  }
-
   return {
     mesa: mesa,
     metodoPago: metodoPago,
@@ -1439,6 +1431,12 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
       console.log('ExtRef:', externalRef);
       console.log('Terminal:', terminalId);
       console.log('--------------------');
+
+      // Consumo enseguida: queda en cola del Point y sale tras el ticket seller
+      imprimirConsumoPoint(mesa, pedidos, total, {
+        delayMs: 0,
+        closedAt: new Date().toISOString(),
+      });
 
       res.json({
         ok: true,
