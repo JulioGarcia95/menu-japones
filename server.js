@@ -704,7 +704,7 @@ function finalizarCuentaMesa(mesa, metodoPago, extras) {
   };
   guardarMesas(mesas);
 
-  // Un solo ticket de consumo, al instante (sale al liberar la pantalla del Point).
+  // Ticket MP (seller) al cobrar; consumo custom ~2 s después.
   if (metodoPago === 'point' && deMesa.length) {
     var pedidosTicket = deMesa.map(function (p) {
       return {
@@ -716,7 +716,7 @@ function finalizarCuentaMesa(mesa, metodoPago, extras) {
       };
     });
     imprimirConsumoPoint(mesa, pedidosTicket, total, {
-      delayMs: 0,
+      delayMs: 2000,
       closedAt: ahora,
       tipAmount: tipAmount,
     }).then(function (r) {
@@ -1546,8 +1546,8 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
     config: {
       point: {
         terminal_id: terminalId,
-        // Solo el ticket de consumo (custom). Sin ticket de MP.
-        print_on_terminal: 'no_ticket',
+        // Ticket de MP al cobrar; el de consumo (custom) va después.
+        print_on_terminal: 'seller_ticket',
       },
     },
   };
