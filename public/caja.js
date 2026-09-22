@@ -216,7 +216,7 @@
           toastEl.hidden = true;
         }
       }, 280);
-    }, 2000);
+    }, 10000);
   }
 
   function imprimirConsumoMesa(mesa, pedidos, total, done) {
