@@ -13,13 +13,6 @@ const PUBLIC_URL = String(process.env.PUBLIC_URL || '')
 const PEDIDOS_PATH = path.join(__dirname, 'pedidos.json');
 const MESAS_PATH = path.join(__dirname, 'mesas.json');
 const CUENTAS_PATH = path.join(__dirname, 'cuentas.json');
-const TICKET_LOGO_PATH = path.join(
-  __dirname,
-  'public',
-  'branding',
-  'ticket-perrita.png'
-);
-var ticketLogoBase64Cache = null;
 var ultimoPrintConsumo = null;
 const AUTH_COOKIE = 'matilda_staff';
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
@@ -439,18 +432,6 @@ function armarContenidoTicketConsumo(mesa, pedidos, total, closedAt) {
   return content;
 }
 
-function leerLogoTicketBase64() {
-  if (ticketLogoBase64Cache) return ticketLogoBase64Cache;
-  try {
-    if (!fs.existsSync(TICKET_LOGO_PATH)) return null;
-    ticketLogoBase64Cache = fs.readFileSync(TICKET_LOGO_PATH).toString('base64');
-    return ticketLogoBase64Cache;
-  } catch (err) {
-    console.error('No se pudo leer logo del ticket:', err.message || err);
-    return null;
-  }
-}
-
 function sanitizarExternalRefPrint(ref) {
   return String(ref || 'print')
     .replace(/[^A-Za-z0-9_-]/g, '')
@@ -572,85 +553,40 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     var content = armarContenidoTicketConsumo(mesa, pedidos, total, closedAt);
     var stamp = Date.now().toString(36);
     var mesaKey = String(mesa || '').replace(/\s+/g, '');
-    // Logo desactivado: la impresión image suele fallar/ocupar el Point
-    // y dejaba sin ticket de texto. Reactivar con PRINT_TICKET_LOGO=1
-    var logoB64 =
-      String(process.env.PRINT_TICKET_LOGO || '').trim() === '1'
-        ? leerLogoTicketBase64()
-        : null;
 
     console.log('--- Enviando ticket consumo Point ---');
     console.log('Mesa:', mesa);
     console.log('Terminal:', terminalId);
-    console.log('Logo:', logoB64 ? 'si' : 'no');
     console.log('Chars:', content.length);
     console.log('------------------------------------');
 
-    // Solo texto custom (lo que importa). Sin logo por defecto.
-    var logoPaso = Promise.resolve({ logo: false });
-    if (logoB64) {
-      logoPaso = enviarAccionPrintPoint(
-        terminalId,
-        token,
-        'image',
-        logoB64,
-        'logo-' + mesaKey + '-' + stamp,
-        1,
-        2
-      )
-        .then(function (logoRes) {
-          console.log('Logo ticket enviado:', logoRes.id || '(sin id)');
-          return { logo: true, logoId: logoRes.id };
-        })
-        .catch(function (logoErr) {
-          console.warn(
-            'Logo ticket omitido, sigo con texto:',
-            logoErr.message || logoErr
-          );
-          return {
-            logo: false,
-            logoError: logoErr.message || String(logoErr),
-          };
-        })
-        .then(function (info) {
-          return esperarMs(1500).then(function () {
-            return info;
-          });
-        });
-    }
-
-    return logoPaso
-      .then(function (logoInfo) {
-        return enviarAccionPrintPoint(
-          terminalId,
-          token,
-          'custom',
-          content,
-          'consumo-' + mesaKey + '-' + stamp,
-          1,
-          5
-        ).then(function (data) {
-          console.log('--- Ticket consumo enviado ---');
-          console.log('Action:', data.id || '(sin id)');
-          console.log('Status:', data.status || 'created');
-          console.log('Logo:', logoInfo && logoInfo.logo ? 'si' : 'no');
-          console.log('------------------------------');
-          ultimoPrintConsumo = {
-            ok: true,
-            at: new Date().toISOString(),
-            mesa: mesa,
-            actionId: data.id,
-            status: data.status || 'created',
-            error: null,
-          };
-          return {
-            ok: true,
-            id: data.id,
-            status: data.status || 'created',
-            logo: !!(logoInfo && logoInfo.logo),
-            logoError: logoInfo && logoInfo.logoError,
-          };
-        });
+    return enviarAccionPrintPoint(
+      terminalId,
+      token,
+      'custom',
+      content,
+      'consumo-' + mesaKey + '-' + stamp,
+      1,
+      5
+    )
+      .then(function (data) {
+        console.log('--- Ticket consumo enviado ---');
+        console.log('Action:', data.id || '(sin id)');
+        console.log('Status:', data.status || 'created');
+        console.log('------------------------------');
+        ultimoPrintConsumo = {
+          ok: true,
+          at: new Date().toISOString(),
+          mesa: mesa,
+          actionId: data.id,
+          status: data.status || 'created',
+          error: null,
+        };
+        return {
+          ok: true,
+          id: data.id,
+          status: data.status || 'created',
+        };
       })
       .catch(function (err) {
         console.error('Error imprimiendo consumo Point:', err.message || err);
@@ -2044,7 +1980,6 @@ app.get(
     res.json({
       ok: true,
       last: ultimoPrintConsumo,
-      logoEnv: String(process.env.PRINT_TICKET_LOGO || '').trim() === '1',
       terminalConfigured: Boolean(pointTerminalId()),
       tokenConfigured: Boolean(mpAccessToken()),
     });
