@@ -236,7 +236,7 @@
     }
     showToast(toastMsg);
 
-    // El servidor imprime el consumo al instante tras el pago.
+    // El consumo se encola; en el Point suele salir al tocar Inicio.
     showScan();
     if (scanStatus) {
       scanStatus.textContent =
@@ -245,10 +245,10 @@
             mesaTxt +
             ' listo (propina ' +
             formatMoney(tipNum) +
-            '). Escanea el siguiente QR…'
+            '). En el Point: toca Inicio para el ticket de consumo.'
           : 'Cobro de ' +
             mesaTxt +
-            ' listo. Escanea el siguiente QR…';
+            ' listo. En el Point: toca Inicio para el ticket de consumo.';
     }
   }
 

@@ -493,7 +493,8 @@ function enviarAccionPrintPoint(
           'Print Point error [' + subtype + '] HTTP ' + mpRes.status + ':',
           typeof raw === 'string' ? raw.slice(0, 500) : msg
         );
-        // Terminal ocupada (ticket seller u otra acción): reintentar
+        // Terminal ocupada (propina / ticket MP / pantalla post-pago):
+        // reintentar hasta ~30s; el custom suele salir al tocar Inicio.
         if (
           intento < maxIntentos &&
           /already_queued|busy|in.?progress|conflict|429/i.test(msg)
@@ -502,7 +503,7 @@ function enviarAccionPrintPoint(
             'Print ' + subtype + ' ocupado, reintento ' + (intento + 1) + '…',
             msg
           );
-          return esperarMs(500).then(function () {
+          return esperarMs(1500).then(function () {
             return enviarAccionPrintPoint(
               terminalId,
               token,
@@ -567,7 +568,7 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
       content,
       'consumo-' + mesaKey + '-' + stamp,
       1,
-      5
+      20
     )
       .then(function (data) {
         console.log('--- Ticket consumo enviado ---');
@@ -1518,9 +1519,9 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
     config: {
       point: {
         terminal_id: terminalId,
-        // no_ticket: evita el ticket de MP + pantallas de reimpresión,
-        // que dejan la terminal ocupada ~10s y retrasan el de consumo.
-        print_on_terminal: 'no_ticket',
+        // Ticket MP al cobrar. El de consumo (custom) solo sale
+        // cuando el Point vuelve a Inicio / queda libre.
+        print_on_terminal: 'seller_ticket',
       },
     },
   };
