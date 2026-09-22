@@ -704,7 +704,7 @@ function finalizarCuentaMesa(mesa, metodoPago, extras) {
   };
   guardarMesas(mesas);
 
-  // Ticket MP al cobrar; consumo ~3 s después para que salgan seguidos
+  // Ticket MP al cobrar; consumo ~2 s después para que salgan seguidos
   // (con el impresor ya activo suele no hacer falta tocar Inicio).
   if (metodoPago === 'point' && deMesa.length) {
     var pedidosTicket = deMesa.map(function (p) {
@@ -717,7 +717,7 @@ function finalizarCuentaMesa(mesa, metodoPago, extras) {
       };
     });
     imprimirConsumoPoint(mesa, pedidosTicket, total, {
-      delayMs: 3000,
+      delayMs: 2000,
       closedAt: ahora,
       tipAmount: tipAmount,
     }).then(function (r) {
