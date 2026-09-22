@@ -55,7 +55,7 @@
     cancelarPointBtn.hidden = !visible;
     cancelarPointBtn.disabled = !visible;
     if (visible) {
-      cancelarPointBtn.textContent = 'Cancelar cobro en Point';
+      cancelarPointBtn.textContent = 'Cancelar / Liberar Point';
     }
   }
 
@@ -342,17 +342,52 @@
           pagarPointBtn.textContent = 'Cobrar con Point Smart';
           if (statusEl) statusEl.textContent = '';
           var msg = err.message || 'No se pudo enviar el cobro al Point';
-          // Cobro previo atascado en la terminal → permitir cancelar
-          if (/already_queued/i.test(msg)) {
+          // Cobro previo atascado → liberar automáticamente y avisar
+          if (/already_queued/i.test(msg) && cuentaActual) {
             setCancelVisible(true);
             if (statusEl) {
               statusEl.textContent =
-                'Ya hay un cobro en el Point. Cancélalo para enviar uno nuevo.';
+                'Había un cobro atascado. Liberando el Point…';
             }
-          } else {
-            orderIdActual = null;
-            setCancelVisible(false);
+            fetch('/api/cuenta/point/liberar', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ mesa: cuentaActual.mesa }),
+            })
+              .then(function (res) {
+                return res.json().then(function (data) {
+                  if (!res.ok || !data.ok) {
+                    throw new Error(data.error || 'No se pudo liberar');
+                  }
+                  return data;
+                });
+              })
+              .then(function () {
+                setCancelVisible(false);
+                if (statusEl) {
+                  statusEl.textContent =
+                    'Point liberado. Vuelve a pulsar Cobrar con Point Smart.';
+                }
+                alert(
+                  'Había un cobro pendiente en Mercado Pago (no se veía en el Point). Ya se liberó. Vuelve a cobrar.'
+                );
+              })
+              .catch(function (libErr) {
+                if (statusEl) {
+                  statusEl.textContent =
+                    libErr.message ||
+                    'No se pudo liberar. En el Point pulsa Actualizar o espera 16 min.';
+                }
+                alert(
+                  (libErr.message || msg) +
+                    '\n\nEn el Point: Actualizar (para traer el cobro) y cancelar, o espera ~16 minutos.'
+                );
+              });
+            return;
           }
+          orderIdActual = null;
+          setCancelVisible(false);
           alert(msg);
         });
     });
@@ -362,10 +397,10 @@
     cancelarPointBtn.addEventListener('click', function () {
       if (!cuentaActual) return;
       cancelarPointBtn.disabled = true;
-      cancelarPointBtn.textContent = 'Cancelando…';
-      if (statusEl) statusEl.textContent = 'Cancelando cobro en Point…';
+      cancelarPointBtn.textContent = 'Liberando…';
+      if (statusEl) statusEl.textContent = 'Cancelando / liberando Point…';
 
-      fetch('/api/cuenta/point/cancel', {
+      fetch('/api/cuenta/point/liberar', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
@@ -390,15 +425,16 @@
           }
           if (statusEl) {
             statusEl.textContent =
-              'Cobro cancelado. Puedes enviar de nuevo al Point.';
+              'Point liberado. Puedes enviar de nuevo el cobro.';
           }
         })
         .catch(function (err) {
           cancelarPointBtn.disabled = false;
-          cancelarPointBtn.textContent = 'Cancelar cobro en Point';
+          cancelarPointBtn.textContent = 'Cancelar / Liberar Point';
           if (statusEl) {
             statusEl.textContent =
-              err.message || 'No se pudo cancelar. Intenta en el Point.';
+              err.message ||
+              'No se pudo liberar. En el Point: Actualizar y cancelar.';
           }
           alert(err.message || 'No se pudo cancelar el cobro');
         });

@@ -1501,28 +1501,13 @@ app.get(
   }
 );
 
-app.post('/api/cuenta/point/cancel', requireAreas(['caja', 'admin']), function (req, res) {
+function cancelarOrderPointPorId(orderId) {
   var token = mpAccessToken();
-  if (!token) {
-    return res.status(503).json({ ok: false, error: 'Falta token MP' });
+  if (!token || !orderId) {
+    return Promise.resolve({ ok: false, error: 'Falta token u order' });
   }
 
-  var mesa = normalizarMesa((req.body && req.body.mesa) || '');
-  var orderId = String((req.body && req.body.orderId) || '').trim();
-  var mesas = leerMesas();
-  var info = (mesa && mesas[mesa]) || {};
-
-  if (!orderId && mesa) {
-    orderId = String(info.pointOrderId || '').trim();
-  }
-  if (!orderId) {
-    return res.status(400).json({
-      ok: false,
-      error: 'No hay cobro pendiente en Point para cancelar',
-    });
-  }
-
-  fetch(
+  return fetch(
     'https://api.mercadopago.com/v1/orders/' +
       encodeURIComponent(orderId) +
       '/cancel',
@@ -1535,37 +1520,114 @@ app.post('/api/cuenta/point/cancel', requireAreas(['caja', 'admin']), function (
         'x-allow-cancelable-status': 'at_terminal',
       },
     }
-  )
+  ).then(function (mpRes) {
+    return mpRes.text().then(function (raw) {
+      var data = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        data = { raw: raw };
+      }
+      if (mpRes.ok || mpRes.status === 202) {
+        return { ok: true, orderId: orderId, status: data.status || 'canceled', data: data };
+      }
+      var msgText = '';
+      if (Array.isArray(data)) msgText = JSON.stringify(data);
+      else if (data) {
+        msgText = String(
+          data.message ||
+            data.error ||
+            data.raw ||
+            (data.errors && JSON.stringify(data.errors)) ||
+            ''
+        );
+      }
+      var alreadyGone =
+        mpRes.status === 404 ||
+        /cancel|expir|not found|already/i.test(msgText);
+      if (alreadyGone) {
+        return { ok: true, orderId: orderId, status: 'gone', data: data };
+      }
+      return {
+        ok: false,
+        orderId: orderId,
+        error: msgText || 'HTTP ' + mpRes.status,
+      };
+    });
+  });
+}
+
+function buscarOrdersPointMesa(mesa) {
+  var token = mpAccessToken();
+  if (!token || !mesa) {
+    return Promise.resolve([]);
+  }
+
+  var url =
+    'https://api.mercadopago.com/v1/orders?type=point&external_reference=' +
+    encodeURIComponent(mesa);
+
+  return fetch(url, {
+    headers: { Authorization: 'Bearer ' + token },
+  })
     .then(function (mpRes) {
       return mpRes.json().then(function (data) {
-        // 200 = cancelada; 202 = aceptada (at_terminal, confirma por webhook)
-        if (mpRes.ok || mpRes.status === 202) {
-          return data || {};
+        if (!mpRes.ok) {
+          console.error('Buscar orders Point:', mpRes.status, data);
+          return [];
         }
-        // Ya cancelada / expirada: limpiamos igual
-        var msgText = '';
-        if (Array.isArray(data)) {
-          msgText = JSON.stringify(data);
-        } else if (data) {
-          msgText = String(
-            data.message ||
-              data.error ||
-              (data.errors && JSON.stringify(data.errors)) ||
-              ''
-          );
-        }
-        var alreadyGone =
-          mpRes.status === 404 ||
-          /cancel|expir|not found|already/i.test(msgText);
-        if (alreadyGone) {
-          return data || {};
-        }
-        throw new Error(
-          msgText || 'No se pudo cancelar el cobro en Point'
-        );
+        var list = [];
+        if (Array.isArray(data)) list = data;
+        else if (data && Array.isArray(data.data)) list = data.data;
+        else if (data && Array.isArray(data.results)) list = data.results;
+        else if (data && data.id) list = [data];
+        return list;
       });
     })
-    .then(function (data) {
+    .catch(function (err) {
+      console.error('Buscar orders Point error:', err.message || err);
+      return [];
+    });
+}
+
+function liberarCobrosPointMesa(mesa, orderIdHint) {
+  var mesas = leerMesas();
+  var info = (mesa && mesas[mesa]) || {};
+  var ids = {};
+
+  if (orderIdHint) ids[String(orderIdHint).trim()] = true;
+  if (info.pointOrderId) ids[String(info.pointOrderId).trim()] = true;
+
+  return buscarOrdersPointMesa(mesa)
+    .then(function (orders) {
+      (orders || []).forEach(function (o) {
+        var st = String((o && o.status) || '').toLowerCase();
+        if (
+          o &&
+          o.id &&
+          (st === 'created' ||
+            st === 'at_terminal' ||
+            st === 'action_required' ||
+            st === 'expired')
+        ) {
+          ids[String(o.id)] = true;
+        }
+      });
+
+      var list = Object.keys(ids).filter(Boolean);
+      if (!list.length) {
+        return { ok: true, canceled: [], note: 'No había orders abiertas' };
+      }
+
+      return Promise.all(
+        list.map(function (id) {
+          return cancelarOrderPointPorId(id);
+        })
+      ).then(function (results) {
+        return { ok: true, canceled: results, searched: list };
+      });
+    })
+    .then(function (result) {
       if (mesa) {
         var mesas2 = leerMesas();
         var info2 = mesas2[mesa] || {};
@@ -1574,23 +1636,75 @@ app.post('/api/cuenta/point/cancel', requireAreas(['caja', 'admin']), function (
         mesas2[mesa] = info2;
         guardarMesas(mesas2);
       }
-
-      console.log('--- Point order cancelada ---');
+      console.log('--- Point liberado ---');
       console.log('Mesa:', mesa || '(sin mesa)');
-      console.log('Order:', orderId);
-      console.log('-----------------------------');
+      console.log('Result:', JSON.stringify(result.canceled || result));
+      console.log('----------------------');
+      return result;
+    });
+}
 
+app.post('/api/cuenta/point/cancel', requireAreas(['caja', 'admin']), function (req, res) {
+  var mesa = normalizarMesa((req.body && req.body.mesa) || '');
+  var orderId = String((req.body && req.body.orderId) || '').trim();
+
+  if (!mesa && !orderId) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Indica la mesa o el orderId a cancelar',
+    });
+  }
+
+  liberarCobrosPointMesa(mesa, orderId)
+    .then(function (result) {
+      var failed = (result.canceled || []).filter(function (r) {
+        return r && r.ok === false;
+      });
+      if (failed.length && !(result.canceled || []).some(function (r) {
+        return r && r.ok;
+      })) {
+        return res.status(502).json({
+          ok: false,
+          error:
+            failed[0].error ||
+            'No se pudo cancelar. En el Point pulsa Actualizar y cancela, o espera ~16 min.',
+          details: result,
+        });
+      }
       res.json({
         ok: true,
         mesa: mesa || null,
-        orderId: orderId,
-        status: (data && data.status) || 'canceled',
+        canceled: result.canceled || [],
+        note: result.note || null,
       });
     })
     .catch(function (err) {
       res.status(502).json({
         ok: false,
         error: err.message || 'Error al cancelar cobro Point',
+      });
+    });
+});
+
+app.post('/api/cuenta/point/liberar', requireAreas(['caja', 'admin']), function (req, res) {
+  var mesa = normalizarMesa((req.body && req.body.mesa) || '');
+  if (!mesa) {
+    return res.status(400).json({ ok: false, error: 'Mesa inválida' });
+  }
+
+  liberarCobrosPointMesa(mesa, (req.body && req.body.orderId) || '')
+    .then(function (result) {
+      res.json({
+        ok: true,
+        mesa: mesa,
+        canceled: result.canceled || [],
+        note: result.note || 'Point liberado',
+      });
+    })
+    .catch(function (err) {
+      res.status(502).json({
+        ok: false,
+        error: err.message || 'No se pudo liberar el Point',
       });
     });
 });
