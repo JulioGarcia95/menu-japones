@@ -367,7 +367,6 @@ function armarContenidoTicketConsumo(mesa, pedidos, total) {
   var ahora = fechaTicketCorta();
   var parts = [];
 
-  // Encabezado
   parts.push('{br}');
   parts.push('{center}{w}Matilda Kitchen{/w}{/center}{br}');
   parts.push('{center}{s}Cocina japonesa{/s}{/center}{br}');
@@ -389,8 +388,9 @@ function armarContenidoTicketConsumo(mesa, pedidos, total) {
       var price = Number(item.price) || 0;
       var sub = qty * price;
       var nombre = truncarTicket(item.name || 'Platillo', 22);
-      parts.push('{s}' + qty + ' x ' + nombre + '{/s}{br}');
-      parts.push('{s}    ' + formatoMontoTicket(sub) + '{/s}{br}');
+      parts.push(
+        '{s}' + qty + ' x ' + nombre + '  ' + formatoMontoTicket(sub) + '{/s}{br}'
+      );
     });
   });
 
@@ -582,9 +582,9 @@ function finalizarCuentaMesa(mesa, metodoPago) {
   };
   guardarMesas(mesas);
 
-  // Ticket de consumo: espera a que el Point termine el ticket seller
+  // Ticket de consumo: Caja lo dispara al confirmar pago (más fiable que solo el webhook)
   if (metodoPago === 'point' && deMesa.length) {
-    imprimirConsumoPoint(mesa, deMesa, total, { delayMs: 7000 });
+    imprimirConsumoPoint(mesa, deMesa, total, { delayMs: 12000 });
   }
 
   return {
@@ -1761,11 +1761,17 @@ app.post(
     imprimirConsumoPoint(mesa, cuenta.pedidos, cuenta.total, { delayMs: 0 })
       .then(function (result) {
         if (!result || !result.ok) {
+          var errMsg =
+            (result && result.error) ||
+            'No se pudo enviar la impresión al Point';
+          // Mensaje claro si MP aún no habilitó impresiones custom
+          if (/print|impres|forbidden|not.?enabled|not.?allow|unauthorized|permission/i.test(errMsg)) {
+            errMsg +=
+              ' — Es posible que Mercado Pago deba habilitar impresiones custom en tu Point (soporte MP).';
+          }
           return res.status(502).json({
             ok: false,
-            error:
-              (result && result.error) ||
-              'No se pudo enviar la impresión al Point. Si el cobro sí imprime, pide a Mercado Pago habilitar impresiones custom en la terminal.',
+            error: errMsg,
           });
         }
         res.json({

@@ -137,20 +137,59 @@
     startScanner();
   }
 
+  function imprimirConsumoAhora() {
+    if (!cuentaActual || !imprimirConsumoBtn) return;
+    setImprimirVisible(true);
+    imprimirConsumoBtn.disabled = true;
+    imprimirConsumoBtn.textContent = 'Imprimiendo…';
+    if (statusEl) {
+      statusEl.textContent = 'Enviando ticket de consumo al Point…';
+    }
+
+    fetch('/api/cuenta/point/print-consumo', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mesa: cuentaActual.mesa }),
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok || !data.ok) throw new Error(data.error || 'Error');
+          return data;
+        });
+      })
+      .then(function () {
+        imprimirConsumoBtn.disabled = false;
+        imprimirConsumoBtn.textContent = 'Imprimir ticket de consumo';
+        if (statusEl) {
+          statusEl.textContent =
+            'Ticket de consumo enviado. Si no sale papel, pulsa el botón de nuevo o pide a Mercado Pago habilitar impresiones custom.';
+        }
+      })
+      .catch(function (err) {
+        imprimirConsumoBtn.disabled = false;
+        imprimirConsumoBtn.textContent = 'Imprimir ticket de consumo';
+        var msg = err.message || 'No se pudo imprimir el ticket de consumo';
+        if (statusEl) statusEl.textContent = msg;
+        alert(msg);
+      });
+  }
+
   function marcarPagadoPoint() {
     stopPoll();
     orderIdActual = null;
     setCancelVisible(false);
     setImprimirVisible(true);
     if (statusEl) {
-      statusEl.textContent =
-        'Pago aprobado. En unos segundos se imprime el ticket de consumo. Si no sale, usa el botón.';
+      statusEl.textContent = 'Pago aprobado. Imprimiendo ticket de consumo…';
     }
     if (pagarPointBtn) {
       pagarPointBtn.disabled = true;
       pagarPointBtn.textContent = 'Pagado en Point';
     }
     if (totalEl) totalEl.textContent = formatMoney(0);
+    // Esperar a que termine el ticket seller de MP y exista la cuenta guardada
+    window.setTimeout(imprimirConsumoAhora, 4000);
   }
 
   function pollPointOrder(orderId) {
