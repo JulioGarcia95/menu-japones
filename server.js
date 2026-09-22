@@ -1183,7 +1183,7 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
     config: {
       point: {
         terminal_id: terminalId,
-        print_on_terminal: 'no_ticket',
+        print_on_terminal: 'seller_ticket',
       },
     },
   };
