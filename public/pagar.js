@@ -12,10 +12,7 @@
   var body = document.getElementById('pagar-body');
   var totalEl = document.getElementById('pagar-total');
   var btnPagar = document.getElementById('btn-pagar');
-  var btnPagarMp = document.getElementById('btn-pagar-mp');
-  var btnPagarMpResultado = document.getElementById('btn-pagar-mp-resultado');
   var hint = document.getElementById('pagar-hint');
-  var mpNote = document.getElementById('pagar-mp-note');
   var mesaEl = document.getElementById('pagar-mesa');
   var warn = document.getElementById('pagar-warn');
   var warnBackdrop = document.getElementById('pagar-warn-backdrop');
@@ -48,50 +45,6 @@
     qrWrap.hidden = false;
   }
 
-  function mpQuery() {
-    try {
-      return new URLSearchParams(window.location.search).get('mp');
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function pagarConMercadoPago(btn) {
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Conectando con Mercado Pago…';
-    }
-    if (hint) hint.textContent = '';
-
-    fetch('/api/cuenta/mercadopago', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mesa: MESA_FIJA }),
-    })
-      .then(function (res) {
-        return res.json().then(function (data) {
-          if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo iniciar el pago');
-          return data;
-        });
-      })
-      .then(function (data) {
-        if (!data.checkoutUrl) throw new Error('Mercado Pago no devolvió URL de pago');
-        window.location.href = data.checkoutUrl;
-      })
-      .catch(function (err) {
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = 'Pagar con Mercado Pago';
-        }
-        if (hint) hint.textContent = err.message || 'Error con Mercado Pago';
-        if (mpNote) {
-          mpNote.hidden = false;
-          mpNote.textContent =
-            'Si aún no configuraste el token, agrega MERCADOPAGO_ACCESS_TOKEN en Render.';
-        }
-      });
-  }
-
   function formatTime(iso) {
     try {
       return new Date(iso).toLocaleString('es-MX', {
@@ -114,7 +67,7 @@
   function etiquetaEstado(status) {
     var s = String(status || 'pendiente').toLowerCase();
     if (s === 'listo' || s === 'entregado') return 'Entregado';
-    if (s === 'en_proceso') return 'En proceso';
+    if (s === 'en_proceso') return 'En cocina';
     return 'Pendiente';
   }
 
@@ -230,7 +183,6 @@
           statusEl.textContent =
             'Esta visita ya terminó (cuenta pagada). Escanea de nuevo el QR de la mesa si quieres ordenar.';
           btnPagar.disabled = true;
-          if (btnPagarMp) btnPagarMp.disabled = true;
           return;
         }
 
@@ -244,7 +196,9 @@
         if (data.orderingClosed && !pedidos.length) {
           localStorage.setItem(CLOSE_KEY, '1');
           statusEl.textContent =
-            'La cuenta de ' + MESA_FIJA + ' ya fue solicitada. Pase a caja o espere en la mesa.';
+            'La cuenta de ' +
+            MESA_FIJA +
+            ' ya fue solicitada. Pase a caja o espere en la mesa.';
           return;
         }
 
@@ -263,7 +217,7 @@
         hint.textContent =
           pedidos.length +
           (pedidos.length === 1 ? ' pedido' : ' pedidos') +
-          ' por pagar.';
+          ' por pagar. En caja te cobrarán con Point Smart.';
       })
       .catch(function () {
         statusEl.hidden = false;
@@ -274,16 +228,6 @@
   }
 
   btnPagar.addEventListener('click', openWarn);
-  if (btnPagarMp) {
-    btnPagarMp.addEventListener('click', function () {
-      pagarConMercadoPago(btnPagarMp);
-    });
-  }
-  if (btnPagarMpResultado) {
-    btnPagarMpResultado.addEventListener('click', function () {
-      pagarConMercadoPago(btnPagarMpResultado);
-    });
-  }
 
   warnReject.addEventListener('click', closeWarn);
   warnBackdrop.addEventListener('click', closeWarn);
@@ -317,38 +261,6 @@
         sheet.hidden = false;
       });
   });
-
-  var mpState = mpQuery();
-  if (mpState === 'success') {
-    statusEl.hidden = false;
-    statusEl.textContent =
-      'Pago enviado. Si Mercado Pago lo aprobó, la mesa se liberará en unos segundos. Recarga si no ves el cambio.';
-    localStorage.removeItem(CLOSE_KEY);
-  } else if (mpState === 'failure') {
-    statusEl.hidden = false;
-    statusEl.textContent = 'El pago no se completó. Puedes intentar de nuevo.';
-  } else if (mpState === 'pending') {
-    statusEl.hidden = false;
-    statusEl.textContent = 'Pago pendiente. Cuando se acredite, la mesa se liberará.';
-  }
-
-  fetch('/api/mercadopago/status')
-    .then(function (res) {
-      return res.json();
-    })
-    .then(function (data) {
-      if (!mpNote) return;
-      if (!data.configured) {
-        mpNote.hidden = false;
-        mpNote.textContent =
-          'Mercado Pago aún no está configurado (falta MERCADOPAGO_ACCESS_TOKEN).';
-      } else if (data.testMode) {
-        mpNote.hidden = false;
-        mpNote.textContent =
-          'Modo prueba de Mercado Pago activo. Usa las tarjetas de prueba de MP.';
-      }
-    })
-    .catch(function () {});
 
   loadCuenta();
 })();

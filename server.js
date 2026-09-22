@@ -1203,6 +1203,7 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
           var msg =
             (data && data.message) ||
             (data && data.error) ||
+            (Array.isArray(data) && JSON.stringify(data)) ||
             (data && data.errors && JSON.stringify(data.errors)) ||
             'No se pudo enviar el cobro al Point';
           throw new Error(msg);
@@ -1235,9 +1236,22 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
       });
     })
     .catch(function (err) {
+      var msg = err.message || 'Error al contactar Point / Mercado Pago';
+      // Si no quedó order creada, quitar bandera pending (salvo cobro previo atascado)
+      if (!/already_queued/i.test(msg)) {
+        try {
+          var mesasErr = leerMesas();
+          var infoErr = mesasErr[mesa] || {};
+          if (!infoErr.pointOrderId) {
+            infoErr.pointPending = false;
+            mesasErr[mesa] = infoErr;
+            guardarMesas(mesasErr);
+          }
+        } catch (e) {}
+      }
       res.status(502).json({
         ok: false,
-        error: err.message || 'Error al contactar Point / Mercado Pago',
+        error: msg,
       });
     });
 });
@@ -1301,7 +1315,101 @@ app.get(
   }
 );
 
-app.post('/api/cuenta/mercadopago', function (req, res) {
+app.post('/api/cuenta/point/cancel', requireAreas(['caja', 'admin']), function (req, res) {
+  var token = mpAccessToken();
+  if (!token) {
+    return res.status(503).json({ ok: false, error: 'Falta token MP' });
+  }
+
+  var mesa = normalizarMesa((req.body && req.body.mesa) || '');
+  var orderId = String((req.body && req.body.orderId) || '').trim();
+  var mesas = leerMesas();
+  var info = (mesa && mesas[mesa]) || {};
+
+  if (!orderId && mesa) {
+    orderId = String(info.pointOrderId || '').trim();
+  }
+  if (!orderId) {
+    return res.status(400).json({
+      ok: false,
+      error: 'No hay cobro pendiente en Point para cancelar',
+    });
+  }
+
+  fetch(
+    'https://api.mercadopago.com/v1/orders/' +
+      encodeURIComponent(orderId) +
+      '/cancel',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'X-Idempotency-Key': nuevoIdempotencyKey(),
+        'x-allow-cancelable-status': 'at_terminal',
+      },
+    }
+  )
+    .then(function (mpRes) {
+      return mpRes.json().then(function (data) {
+        // 200 = cancelada; 202 = aceptada (at_terminal, confirma por webhook)
+        if (mpRes.ok || mpRes.status === 202) {
+          return data || {};
+        }
+        // Ya cancelada / expirada: limpiamos igual
+        var msgText = '';
+        if (Array.isArray(data)) {
+          msgText = JSON.stringify(data);
+        } else if (data) {
+          msgText = String(
+            data.message ||
+              data.error ||
+              (data.errors && JSON.stringify(data.errors)) ||
+              ''
+          );
+        }
+        var alreadyGone =
+          mpRes.status === 404 ||
+          /cancel|expir|not found|already/i.test(msgText);
+        if (alreadyGone) {
+          return data || {};
+        }
+        throw new Error(
+          msgText || 'No se pudo cancelar el cobro en Point'
+        );
+      });
+    })
+    .then(function (data) {
+      if (mesa) {
+        var mesas2 = leerMesas();
+        var info2 = mesas2[mesa] || {};
+        info2.pointPending = false;
+        info2.pointOrderId = null;
+        mesas2[mesa] = info2;
+        guardarMesas(mesas2);
+      }
+
+      console.log('--- Point order cancelada ---');
+      console.log('Mesa:', mesa || '(sin mesa)');
+      console.log('Order:', orderId);
+      console.log('-----------------------------');
+
+      res.json({
+        ok: true,
+        mesa: mesa || null,
+        orderId: orderId,
+        status: (data && data.status) || 'canceled',
+      });
+    })
+    .catch(function (err) {
+      res.status(502).json({
+        ok: false,
+        error: err.message || 'Error al cancelar cobro Point',
+      });
+    });
+});
+
+app.post('/api/cuenta/mercadopago', requireAreas(['caja', 'admin']), function (req, res) {
   var token = mpAccessToken();
   if (!token) {
     return res.status(503).json({

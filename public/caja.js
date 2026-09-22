@@ -9,13 +9,14 @@
   var statusEl = document.getElementById('caja-status');
   var body = document.getElementById('caja-body');
   var pagarPointBtn = document.getElementById('caja-pagar-point');
-  var pagarMpBtn = document.getElementById('caja-pagar-mp');
+  var cancelarPointBtn = document.getElementById('caja-cancelar-point');
   var nuevaBtn = document.getElementById('caja-nueva');
   var readerEl = document.getElementById('caja-reader');
 
   if (!scanSection || !cuentaSection) return;
 
   var cuentaActual = null;
+  var orderIdActual = null;
   var html5QrCode = null;
   var scanning = false;
   var pollTimer = null;
@@ -48,8 +49,19 @@
     return null;
   }
 
+  function setCancelVisible(visible) {
+    if (!cancelarPointBtn) return;
+    cancelarPointBtn.hidden = !visible;
+    cancelarPointBtn.disabled = !visible;
+    if (visible) {
+      cancelarPointBtn.textContent = 'Cancelar cobro en Point';
+    }
+  }
+
   function showCuenta(data) {
     cuentaActual = data;
+    orderIdActual = null;
+    setCancelVisible(false);
     scanSection.hidden = true;
     cuentaSection.hidden = false;
     stopScanner();
@@ -60,6 +72,10 @@
       statusEl.textContent =
         (data.pedidos || []).length +
         ' pedido(s) · Listo para cobrar';
+    }
+    if (pagarPointBtn) {
+      pagarPointBtn.disabled = false;
+      pagarPointBtn.textContent = 'Cobrar con Point Smart';
     }
 
     if (body) {
@@ -96,6 +112,8 @@
   function showScan() {
     stopPoll();
     cuentaActual = null;
+    orderIdActual = null;
+    setCancelVisible(false);
     cuentaSection.hidden = true;
     scanSection.hidden = false;
     if (statusEl) statusEl.textContent = '';
@@ -104,15 +122,13 @@
       pagarPointBtn.disabled = false;
       pagarPointBtn.textContent = 'Cobrar con Point Smart';
     }
-    if (pagarMpBtn) {
-      pagarMpBtn.disabled = false;
-      pagarMpBtn.textContent = 'Cobrar con link Mercado Pago';
-    }
     startScanner();
   }
 
   function marcarPagadoPoint() {
     stopPoll();
+    orderIdActual = null;
+    setCancelVisible(false);
     if (statusEl) {
       statusEl.textContent = 'Pago aprobado en Point. Mesa cerrada.';
     }
@@ -120,7 +136,6 @@
       pagarPointBtn.disabled = true;
       pagarPointBtn.textContent = 'Pagado en Point';
     }
-    if (pagarMpBtn) pagarMpBtn.disabled = true;
     if (totalEl) totalEl.textContent = formatMoney(0);
   }
 
@@ -145,6 +160,23 @@
           }
           if (data.paid) {
             marcarPagadoPoint();
+          }
+          if (
+            data.status === 'canceled' ||
+            data.status === 'cancelled' ||
+            data.status === 'expired'
+          ) {
+            stopPoll();
+            orderIdActual = null;
+            setCancelVisible(false);
+            if (pagarPointBtn) {
+              pagarPointBtn.disabled = false;
+              pagarPointBtn.textContent = 'Cobrar con Point Smart';
+            }
+            if (statusEl) {
+              statusEl.textContent =
+                'Cobro cancelado o expirado. Puedes enviar de nuevo al Point.';
+            }
           }
         })
         .catch(function () {});
@@ -264,7 +296,7 @@
       if (!cuentaActual) return;
       pagarPointBtn.disabled = true;
       pagarPointBtn.textContent = 'Enviando al Point…';
-      if (pagarMpBtn) pagarMpBtn.disabled = true;
+      setCancelVisible(false);
       if (statusEl) statusEl.textContent = 'Enviando cobro al Point Smart…';
 
       fetch('/api/cuenta/point', {
@@ -280,7 +312,9 @@
           });
         })
         .then(function (data) {
+          orderIdActual = data.orderId;
           pagarPointBtn.textContent = 'Esperando en Point…';
+          setCancelVisible(true);
           if (statusEl) {
             statusEl.textContent =
               'Cobro $' +
@@ -292,23 +326,39 @@
         .catch(function (err) {
           pagarPointBtn.disabled = false;
           pagarPointBtn.textContent = 'Cobrar con Point Smart';
-          if (pagarMpBtn) pagarMpBtn.disabled = false;
           if (statusEl) statusEl.textContent = '';
-          alert(err.message || 'No se pudo enviar el cobro al Point');
+          var msg = err.message || 'No se pudo enviar el cobro al Point';
+          // Cobro previo atascado en la terminal → permitir cancelar
+          if (/already_queued/i.test(msg)) {
+            setCancelVisible(true);
+            if (statusEl) {
+              statusEl.textContent =
+                'Ya hay un cobro en el Point. Cancélalo para enviar uno nuevo.';
+            }
+          } else {
+            orderIdActual = null;
+            setCancelVisible(false);
+          }
+          alert(msg);
         });
     });
   }
 
-  if (pagarMpBtn) {
-    pagarMpBtn.addEventListener('click', function () {
+  if (cancelarPointBtn) {
+    cancelarPointBtn.addEventListener('click', function () {
       if (!cuentaActual) return;
-      pagarMpBtn.disabled = true;
-      pagarMpBtn.textContent = 'Abriendo Mercado Pago…';
-      fetch('/api/cuenta/mercadopago', {
+      cancelarPointBtn.disabled = true;
+      cancelarPointBtn.textContent = 'Cancelando…';
+      if (statusEl) statusEl.textContent = 'Cancelando cobro en Point…';
+
+      fetch('/api/cuenta/point/cancel', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mesa: cuentaActual.mesa }),
+        body: JSON.stringify({
+          mesa: cuentaActual.mesa,
+          orderId: orderIdActual || undefined,
+        }),
       })
         .then(function (res) {
           return res.json().then(function (data) {
@@ -316,13 +366,27 @@
             return data;
           });
         })
-        .then(function (data) {
-          window.location.href = data.checkoutUrl;
+        .then(function () {
+          stopPoll();
+          orderIdActual = null;
+          setCancelVisible(false);
+          if (pagarPointBtn) {
+            pagarPointBtn.disabled = false;
+            pagarPointBtn.textContent = 'Cobrar con Point Smart';
+          }
+          if (statusEl) {
+            statusEl.textContent =
+              'Cobro cancelado. Puedes enviar de nuevo al Point.';
+          }
         })
         .catch(function (err) {
-          pagarMpBtn.disabled = false;
-          pagarMpBtn.textContent = 'Cobrar con link Mercado Pago';
-          alert(err.message || 'No se pudo iniciar el cobro');
+          cancelarPointBtn.disabled = false;
+          cancelarPointBtn.textContent = 'Cancelar cobro en Point';
+          if (statusEl) {
+            statusEl.textContent =
+              err.message || 'No se pudo cancelar. Intenta en el Point.';
+          }
+          alert(err.message || 'No se pudo cancelar el cobro');
         });
     });
   }
