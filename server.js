@@ -365,8 +365,11 @@ function fechaTicketCorta(iso) {
   }
 }
 
-function armarContenidoTicketConsumo(mesa, pedidos, total, closedAt) {
+function armarContenidoTicketConsumo(mesa, pedidos, total, closedAt, tipAmount) {
   var ahora = fechaTicketCorta(closedAt || Date.now());
+  var tip = Math.max(0, Number(tipAmount) || 0);
+  var subtotal = Number(total) || 0;
+  var granTotal = subtotal + tip;
   var parts = [];
 
   parts.push('{br}');
@@ -403,16 +406,22 @@ function armarContenidoTicketConsumo(mesa, pedidos, total, closedAt) {
   Object.keys(lineas).forEach(function (key) {
     var L = lineas[key];
     var sub = L.qty * L.price;
-    parts.push(
-      '{s}' + L.qty + ' x ' + L.nombre + '{/s}{br}'
-    );
+    parts.push('{s}' + L.qty + ' x ' + L.nombre + '{/s}{br}');
     parts.push('{s}   ' + formatoMontoTicket(sub) + '{/s}{br}');
   });
 
   parts.push('{br}');
   parts.push('--------------------------------{br}');
+  if (tip > 0) {
+    parts.push(
+      '{center}{s}Subtotal  ' + formatoMontoTicket(subtotal) + '{/s}{/center}{br}'
+    );
+    parts.push(
+      '{center}{s}Propina  ' + formatoMontoTicket(tip) + '{/s}{/center}{br}'
+    );
+  }
   parts.push(
-    '{center}{b}TOTAL  ' + formatoMontoTicket(total) + '{/b}{/center}{br}'
+    '{center}{b}TOTAL  ' + formatoMontoTicket(granTotal) + '{/b}{/center}{br}'
   );
   parts.push('--------------------------------{br}');
   parts.push('{br}');
@@ -539,6 +548,7 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
   var delayMs = Number(opts.delayMs);
   if (!Number.isFinite(delayMs) || delayMs < 0) delayMs = 0;
   var closedAt = opts.closedAt || null;
+  var tipAmount = Math.max(0, Number(opts.tipAmount) || 0);
 
   var run = function () {
     var token = mpAccessToken();
@@ -551,7 +561,13 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
       return Promise.resolve({ ok: false, error: 'No hay consumo para imprimir' });
     }
 
-    var content = armarContenidoTicketConsumo(mesa, pedidos, total, closedAt);
+    var content = armarContenidoTicketConsumo(
+      mesa,
+      pedidos,
+      total,
+      closedAt,
+      tipAmount
+    );
     var stamp = Date.now().toString(36);
     var mesaKey = String(mesa || '').replace(/\s+/g, '');
 
@@ -615,7 +631,10 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
 
 function finalizarCuentaMesa(mesa, metodoPago, extras) {
   extras = extras || {};
-  var tipAmount = Number(extras.tipAmount) || 0;
+  var mesasPrev = leerMesas();
+  var prevInfo = mesasPrev[mesa] || {};
+  var tipAmount =
+    Number(extras.tipAmount) || Number(prevInfo.pendingTipAmount) || 0;
   var paidAmount = Number(extras.paidAmount) || 0;
 
   var pedidos = leerPedidos();
@@ -681,10 +700,11 @@ function finalizarCuentaMesa(mesa, metodoPago, extras) {
     payToken: null,
     lastTipAmount: tipAmount || null,
     lastPaidAmount: paidAmount > 0 ? paidAmount : null,
+    pendingTipAmount: null,
   };
   guardarMesas(mesas);
 
-  // Consumo a los 2 s (sale en el Point al tocar Inicio / liberar pantalla).
+  // Un solo ticket de consumo, al instante (sale al liberar la pantalla del Point).
   if (metodoPago === 'point' && deMesa.length) {
     var pedidosTicket = deMesa.map(function (p) {
       return {
@@ -696,8 +716,9 @@ function finalizarCuentaMesa(mesa, metodoPago, extras) {
       };
     });
     imprimirConsumoPoint(mesa, pedidosTicket, total, {
-      delayMs: 2000,
+      delayMs: 0,
       closedAt: ahora,
+      tipAmount: tipAmount,
     }).then(function (r) {
       if (r && r.ok) {
         console.log('Print consumo OK (auto):', mesa, r.id || '');
@@ -1490,13 +1511,16 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
     return res.status(400).json({ ok: false, error: 'El total debe ser mayor a 0' });
   }
 
-  var amount = formatoMontoPoint(total);
+  var tipAmount = Math.max(0, Number(req.body && req.body.tipAmount) || 0);
+  var chargeTotal = total + tipAmount;
+  var amount = formatoMontoPoint(chargeTotal);
   var mesas = leerMesas();
   var prev = mesas[mesa] || {};
   mesas[mesa] = Object.assign({}, prev, {
     orderingClosed: true,
     closedAt: new Date().toISOString(),
     total: total,
+    pendingTipAmount: tipAmount,
     pointPending: true,
   });
   guardarMesas(mesas);
@@ -1512,7 +1536,10 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
     type: 'point',
     external_reference: externalRef,
     expiration_time: 'PT16M',
-    description: 'Cuenta ' + mesa + ' - Matilda Kitchen',
+    description:
+      tipAmount > 0
+        ? 'Cuenta ' + mesa + ' + propina - Matilda Kitchen'
+        : 'Cuenta ' + mesa + ' - Matilda Kitchen',
     transactions: {
       payments: [{ amount: amount }],
     },
@@ -1560,7 +1587,9 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
 
       console.log('--- Point order ---');
       console.log('Mesa:', mesa);
-      console.log('Total: $' + amount);
+      console.log('Cuenta: $' + total);
+      console.log('Propina: $' + tipAmount);
+      console.log('Cobro: $' + amount);
       console.log('Order:', orderId);
       console.log('ExtRef:', externalRef);
       console.log('Terminal:', terminalId);
@@ -1569,7 +1598,9 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
       res.json({
         ok: true,
         mesa: mesa,
-        total: total,
+        total: chargeTotal,
+        accountTotal: total,
+        tipAmount: tipAmount,
         orderId: orderId,
         status: data.status || 'created',
       });
@@ -1657,7 +1688,11 @@ app.get(
           statusDetail: order.status_detail,
           mesa: mesa,
           paid: paid,
-          tipAmount: tipAmount || Number(mesaInfo.lastTipAmount) || 0,
+          tipAmount:
+            tipAmount ||
+            Number(mesaInfo.pendingTipAmount) ||
+            Number(mesaInfo.lastTipAmount) ||
+            0,
           paidAmount: paidAmount || Number(mesaInfo.lastPaidAmount) || 0,
         });
       })
@@ -1930,6 +1965,10 @@ app.post(
     var closedAt =
       (cuenta && (cuenta.closedAt || cuenta.createdAt)) ||
       new Date().toISOString();
+    var tipPrint =
+      (cuenta && Number(cuenta.tipAmount)) ||
+      (req.body && Number(req.body.tipAmount)) ||
+      0;
 
     if (!pedidos || !pedidos.length) {
       return res.status(404).json({
@@ -1941,6 +1980,7 @@ app.post(
     imprimirConsumoPoint(mesa, pedidos, total, {
       delayMs: 0,
       closedAt: closedAt,
+      tipAmount: tipPrint,
     })
       .then(function (result) {
         if (!result || !result.ok) {

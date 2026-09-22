@@ -82,6 +82,36 @@
           </table>
         </div>
 
+        <div class="caja-propina" id="caja-propina">
+          <p class="caja-propina-label">Propina</p>
+          <div class="caja-propina-ops" role="group" aria-label="Propina">
+            <button type="button" class="caja-propina-btn is-active" data-tip="0">
+              Sin propina
+            </button>
+            <button type="button" class="caja-propina-btn" data-tip="10">
+              10%
+            </button>
+            <button type="button" class="caja-propina-btn" data-tip="15">
+              15%
+            </button>
+            <button type="button" class="caja-propina-btn" data-tip="20">
+              20%
+            </button>
+          </div>
+          <label class="caja-propina-otra">
+            Otra
+            <input
+              type="number"
+              id="caja-propina-monto"
+              min="0"
+              step="1"
+              placeholder="0"
+              inputmode="numeric"
+            />
+          </label>
+          <p class="caja-propina-resumen" id="caja-propina-resumen"></p>
+        </div>
+
         <button type="button" class="btn-pagar-mp" id="caja-pagar-point">
           Cobrar con Point Smart
         </button>

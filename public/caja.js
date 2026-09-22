@@ -16,12 +16,17 @@
   var readerEl = document.getElementById('caja-reader');
   var toastEl = document.getElementById('caja-toast');
   var toastText = document.getElementById('caja-toast-text');
+  var propinaBtns = document.querySelectorAll('.caja-propina-btn');
+  var propinaMontoInput = document.getElementById('caja-propina-monto');
+  var propinaResumen = document.getElementById('caja-propina-resumen');
 
   if (!scanSection || !cuentaSection) return;
 
   var cuentaActual = null;
   var ultimaMesaPagada = null;
   var orderIdActual = null;
+  var tipPct = 0;
+  var tipManual = null;
   var html5QrCode = null;
   var scanning = false;
   var pollTimer = null;
@@ -37,6 +42,51 @@
 
   function formatMoney(n) {
     return '$' + Number(n || 0);
+  }
+
+  function cuentaBase() {
+    return cuentaActual ? Number(cuentaActual.total) || 0 : 0;
+  }
+
+  function tipActual() {
+    if (tipManual != null && !Number.isNaN(tipManual)) {
+      return Math.max(0, Math.round(tipManual));
+    }
+    var base = cuentaBase();
+    return Math.max(0, Math.round((base * tipPct) / 100));
+  }
+
+  function actualizarPropinaUI() {
+    var base = cuentaBase();
+    var tip = tipActual();
+    var cobro = base + tip;
+    if (totalEl) totalEl.textContent = formatMoney(cobro);
+    if (propinaResumen) {
+      propinaResumen.textContent =
+        tip > 0
+          ? 'Cuenta ' +
+            formatMoney(base) +
+            ' + propina ' +
+            formatMoney(tip) +
+            ' = ' +
+            formatMoney(cobro)
+          : 'Sin propina · Cobro ' + formatMoney(base);
+    }
+    if (pagarPointBtn && !orderIdActual) {
+      pagarPointBtn.textContent =
+        'Cobrar ' + formatMoney(cobro) + ' con Point';
+    }
+  }
+
+  function setTipPct(pct) {
+    tipPct = Number(pct) || 0;
+    tipManual = null;
+    if (propinaMontoInput) propinaMontoInput.value = '';
+    propinaBtns.forEach(function (btn) {
+      var v = Number(btn.getAttribute('data-tip')) || 0;
+      btn.classList.toggle('is-active', v === tipPct && tipManual == null);
+    });
+    actualizarPropinaUI();
   }
 
   function parseCajaUrl(text) {
@@ -83,7 +133,7 @@
     stopScanner();
 
     if (mesaLabel) mesaLabel.textContent = data.mesa;
-    if (totalEl) totalEl.textContent = formatMoney(data.total);
+    setTipPct(0);
     if (statusEl) {
       statusEl.textContent =
         (data.pedidos || []).length +
@@ -91,7 +141,6 @@
     }
     if (pagarPointBtn) {
       pagarPointBtn.disabled = false;
-      pagarPointBtn.textContent = 'Cobrar con Point Smart';
     }
 
     if (body) {
@@ -167,7 +216,7 @@
           toastEl.hidden = true;
         }
       }, 280);
-    }, 4500);
+    }, 2000);
   }
 
   function imprimirConsumoMesa(mesa, pedidos, total, done) {
@@ -236,7 +285,7 @@
     }
     showToast(toastMsg);
 
-    // Solo un ticket: el de consumo (sin ticket de MP).
+    // Un solo ticket de consumo; se imprime al liberar la pantalla del Point.
     showScan();
     if (scanStatus) {
       scanStatus.textContent =
@@ -245,10 +294,10 @@
             mesaTxt +
             ' listo (propina ' +
             formatMoney(tipNum) +
-            '). Toca Inicio en el Point para el ticket de consumo.'
+            '). Escanea el siguiente QR…'
           : 'Cobro de ' +
             mesaTxt +
-            ' listo. Toca Inicio en el Point para el ticket de consumo.';
+            ' listo. Escanea el siguiente QR…';
     }
   }
 
@@ -410,6 +459,7 @@
   if (pagarPointBtn) {
     pagarPointBtn.addEventListener('click', function () {
       if (!cuentaActual) return;
+      var tip = tipActual();
       pagarPointBtn.disabled = true;
       pagarPointBtn.textContent = 'Enviando al Point…';
       setCancelVisible(false);
@@ -419,7 +469,10 @@
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mesa: cuentaActual.mesa }),
+        body: JSON.stringify({
+          mesa: cuentaActual.mesa,
+          tipAmount: tip,
+        }),
       })
         .then(function (res) {
           return res.json().then(function (data) {
@@ -432,16 +485,21 @@
           pagarPointBtn.textContent = 'Esperando en Point…';
           setCancelVisible(true);
           if (statusEl) {
+            var tipTxt =
+              Number(data.tipAmount) > 0
+                ? ' (incluye propina ' + formatMoney(data.tipAmount) + ')'
+                : '';
             statusEl.textContent =
-              'Cobro $' +
-              Number(data.total || 0) +
+              'Cobro ' +
+              formatMoney(data.total || 0) +
+              tipTxt +
               ' enviado al Point. Pide al cliente que pague en la terminal.';
           }
           pollPointOrder(data.orderId);
         })
         .catch(function (err) {
           pagarPointBtn.disabled = false;
-          pagarPointBtn.textContent = 'Cobrar con Point Smart';
+          actualizarPropinaUI();
           if (statusEl) statusEl.textContent = '';
           var msg = err.message || 'No se pudo enviar el cobro al Point';
           // Cobro previo atascado → liberar automáticamente y avisar
@@ -492,6 +550,31 @@
           setCancelVisible(false);
           alert(msg);
         });
+    });
+  }
+
+  propinaBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setTipPct(btn.getAttribute('data-tip'));
+    });
+  });
+
+  if (propinaMontoInput) {
+    propinaMontoInput.addEventListener('input', function () {
+      var v = Number(propinaMontoInput.value);
+      if (propinaMontoInput.value === '' || Number.isNaN(v)) {
+        tipManual = null;
+        propinaBtns.forEach(function (btn) {
+          var pct = Number(btn.getAttribute('data-tip')) || 0;
+          btn.classList.toggle('is-active', pct === tipPct);
+        });
+      } else {
+        tipManual = Math.max(0, v);
+        propinaBtns.forEach(function (btn) {
+          btn.classList.remove('is-active');
+        });
+      }
+      actualizarPropinaUI();
     });
   }
 

@@ -1148,6 +1148,68 @@ body.success-open {
   font-weight: 700;
 }
 
+.caja-propina {
+  margin: 0 0 1rem;
+  padding: 0.85rem 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.caja-propina-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--mute);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.caja-propina-ops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.caja-propina-btn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.caja-propina-btn.is-active {
+  border-color: var(--lacquer);
+  background: rgba(230, 57, 70, 0.14);
+}
+
+.caja-propina-otra {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  font-size: 0.9rem;
+  color: var(--mute);
+}
+
+.caja-propina-otra input {
+  width: 5.5rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper-soft);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+
+.caja-propina-resumen {
+  margin: 0.55rem 0 0;
+  font-size: 0.92rem;
+  color: var(--mute);
+}
+
 .caja-cuenta .mesa-reabrir {
   margin-top: 0.75rem;
 }
