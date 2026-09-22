@@ -351,6 +351,7 @@ function formatoMontoTicket(n) {
 function fechaTicketCorta(iso) {
   try {
     return new Date(iso || Date.now()).toLocaleString('es-MX', {
+      timeZone: 'America/Mexico_City',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -363,8 +364,8 @@ function fechaTicketCorta(iso) {
   }
 }
 
-function armarContenidoTicketConsumo(mesa, pedidos, total) {
-  var ahora = fechaTicketCorta();
+function armarContenidoTicketConsumo(mesa, pedidos, total, closedAt) {
+  var ahora = fechaTicketCorta(closedAt || Date.now());
   var parts = [];
 
   parts.push('{br}');
@@ -382,16 +383,28 @@ function armarContenidoTicketConsumo(mesa, pedidos, total) {
   parts.push('{center}{b}Detalle de consumo{/b}{/center}{br}');
   parts.push('{br}');
 
+  // Agrupar renglones por nombre+precio para un ticket limpio
+  var lineas = {};
   (pedidos || []).forEach(function (pedido) {
     (pedido.items || []).forEach(function (item) {
       var qty = Math.max(1, Number(item.qty) || 1);
       var price = Number(item.price) || 0;
-      var sub = qty * price;
-      var nombre = truncarTicket(item.name || 'Platillo', 22);
-      parts.push(
-        '{s}' + qty + ' x ' + nombre + '  ' + formatoMontoTicket(sub) + '{/s}{br}'
-      );
+      var nombre = truncarTicket(item.name || 'Platillo', 18);
+      var key = nombre + '|' + price;
+      if (!lineas[key]) {
+        lineas[key] = { nombre: nombre, qty: 0, price: price };
+      }
+      lineas[key].qty += qty;
     });
+  });
+
+  Object.keys(lineas).forEach(function (key) {
+    var L = lineas[key];
+    var sub = L.qty * L.price;
+    parts.push(
+      '{s}' + L.qty + ' x ' + L.nombre + '{/s}{br}'
+    );
+    parts.push('{s}   ' + formatoMontoTicket(sub) + '{/s}{br}');
   });
 
   parts.push('{br}');
@@ -429,6 +442,7 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
   opts = opts || {};
   var delayMs = Number(opts.delayMs);
   if (!Number.isFinite(delayMs) || delayMs < 0) delayMs = 0;
+  var closedAt = opts.closedAt || null;
 
   var run = function () {
     var token = mpAccessToken();
@@ -441,7 +455,7 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
       return Promise.resolve({ ok: false, error: 'No hay consumo para imprimir' });
     }
 
-    var content = armarContenidoTicketConsumo(mesa, pedidos, total);
+    var content = armarContenidoTicketConsumo(mesa, pedidos, total, closedAt);
     var externalRef = (
       'consumo-' +
       String(mesa || '').replace(/\s+/g, '') +
@@ -582,10 +596,8 @@ function finalizarCuentaMesa(mesa, metodoPago) {
   };
   guardarMesas(mesas);
 
-  // Ticket de consumo: Caja lo dispara al confirmar pago (más fiable que solo el webhook)
-  if (metodoPago === 'point' && deMesa.length) {
-    imprimirConsumoPoint(mesa, deMesa, total, { delayMs: 12000 });
-  }
+  // El ticket de consumo lo dispara Caja al confirmar el pago
+  // (evita imprimir dos veces / con datos viejos)
 
   return {
     mesa: mesa,
@@ -711,7 +723,8 @@ function normalizarMesa(valor) {
     .replace(/\s+/g, '');
   if (!texto) return null;
 
-  var match = texto.match(/^(?:MESA)?0*([0-9]{1,3})$/);
+  // Acepta Mesa01, MESA1, Mesa01-abc123 (external_reference de Point)
+  var match = texto.match(/^(?:MESA)?0*([0-9]{1,3})(?:[-_].*)?$/);
   if (!match) return null;
 
   var num = match[1];
@@ -1758,7 +1771,10 @@ app.post(
       });
     }
 
-    imprimirConsumoPoint(mesa, cuenta.pedidos, cuenta.total, { delayMs: 0 })
+    imprimirConsumoPoint(mesa, cuenta.pedidos, cuenta.total, {
+      delayMs: 0,
+      closedAt: cuenta.closedAt || cuenta.createdAt,
+    })
       .then(function (result) {
         if (!result || !result.ok) {
           var errMsg =
