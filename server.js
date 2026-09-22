@@ -13,6 +13,13 @@ const PUBLIC_URL = String(process.env.PUBLIC_URL || '')
 const PEDIDOS_PATH = path.join(__dirname, 'pedidos.json');
 const MESAS_PATH = path.join(__dirname, 'mesas.json');
 const CUENTAS_PATH = path.join(__dirname, 'cuentas.json');
+const TICKET_LOGO_PATH = path.join(
+  __dirname,
+  'public',
+  'branding',
+  'ticket-perrita.png'
+);
+var ticketLogoBase64Cache = null;
 const AUTH_COOKIE = 'matilda_staff';
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
 const AUTH_SECRET =
@@ -373,6 +380,7 @@ function armarContenidoTicketConsumo(mesa, pedidos, total, closedAt) {
   parts.push('{center}{s}Cocina japonesa{/s}{/center}{br}');
   parts.push('{br}');
   parts.push('{center}Gracias por su visita{/center}{br}');
+  parts.push('{center}{s}y la de nuestra perrita{/s}{/center}{br}');
   parts.push('{br}');
   parts.push('--------------------------------{br}');
   parts.push('{center}{b}' + truncarTicket(mesa, 24) + '{/b}{/center}{br}');
@@ -430,6 +438,63 @@ function armarContenidoTicketConsumo(mesa, pedidos, total, closedAt) {
   return content;
 }
 
+function leerLogoTicketBase64() {
+  if (ticketLogoBase64Cache) return ticketLogoBase64Cache;
+  try {
+    if (!fs.existsSync(TICKET_LOGO_PATH)) return null;
+    ticketLogoBase64Cache = fs.readFileSync(TICKET_LOGO_PATH).toString('base64');
+    return ticketLogoBase64Cache;
+  } catch (err) {
+    console.error('No se pudo leer logo del ticket:', err.message || err);
+    return null;
+  }
+}
+
+function enviarAccionPrintPoint(terminalId, token, subtype, content, externalRef) {
+  return fetch('https://api.mercadopago.com/terminals/v1/actions', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json',
+      'X-Idempotency-Key': nuevoIdempotencyKey(),
+    },
+    body: JSON.stringify({
+      type: 'print',
+      external_reference: String(externalRef || '').slice(0, 64),
+      config: {
+        point: {
+          terminal_id: terminalId,
+          subtype: subtype,
+        },
+      },
+      content: content,
+    }),
+  }).then(function (mpRes) {
+    return mpRes.text().then(function (raw) {
+      var data = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        data = { raw: raw };
+      }
+      if (!mpRes.ok) {
+        var msg =
+          (data && data.message) ||
+          (data && data.error) ||
+          (Array.isArray(data) && JSON.stringify(data)) ||
+          (data && data.raw) ||
+          'HTTP ' + mpRes.status;
+        throw new Error(String(msg));
+      }
+      return {
+        ok: true,
+        id: data.id,
+        status: data.status || 'created',
+      };
+    });
+  });
+}
+
 function ultimaCuentaMesa(mesa) {
   var cuentas = leerCuentas();
   for (var i = cuentas.length - 1; i >= 0; i--) {
@@ -456,66 +521,56 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     }
 
     var content = armarContenidoTicketConsumo(mesa, pedidos, total, closedAt);
-    var externalRef = (
-      'consumo-' +
-      String(mesa || '').replace(/\s+/g, '') +
-      '-' +
-      Date.now().toString(36)
-    ).slice(0, 64);
+    var stamp = Date.now().toString(36);
+    var logoB64 = leerLogoTicketBase64();
 
     console.log('--- Enviando ticket consumo Point ---');
     console.log('Mesa:', mesa);
     console.log('Terminal:', terminalId);
+    console.log('Logo:', logoB64 ? 'si' : 'no');
     console.log('Chars:', content.length);
     console.log('------------------------------------');
 
-    return fetch('https://api.mercadopago.com/terminals/v1/actions', {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + token,
-        'Content-Type': 'application/json',
-        'X-Idempotency-Key': nuevoIdempotencyKey(),
-      },
-      body: JSON.stringify({
-        type: 'print',
-        external_reference: externalRef,
-        config: {
-          point: {
-            terminal_id: terminalId,
-            subtype: 'custom',
-          },
-        },
-        content: content,
-      }),
-    })
-      .then(function (mpRes) {
-        return mpRes.text().then(function (raw) {
-          var data = {};
-          try {
-            data = raw ? JSON.parse(raw) : {};
-          } catch (e) {
-            data = { raw: raw };
-          }
-          if (!mpRes.ok) {
-            var msg =
-              (data && data.message) ||
-              (data && data.error) ||
-              (Array.isArray(data) && JSON.stringify(data)) ||
-              (data && data.raw) ||
-              'HTTP ' + mpRes.status;
-            console.error('Print consumo MP error:', mpRes.status, raw);
-            throw new Error(String(msg));
-          }
-          console.log('--- Ticket consumo enviado ---');
-          console.log('Action:', data.id || '(sin id)');
-          console.log('Status:', data.status || 'created');
-          console.log('------------------------------');
-          return {
-            ok: true,
-            id: data.id,
-            status: data.status || 'created',
-          };
-        });
+    var cadena = Promise.resolve({ ok: true });
+
+    // 1) Logo de la perrita (imagen B/N)
+    if (logoB64) {
+      cadena = enviarAccionPrintPoint(
+        terminalId,
+        token,
+        'image',
+        logoB64,
+        ('logo-' + String(mesa || '').replace(/\s+/g, '') + '-' + stamp).slice(0, 64)
+      ).then(function (r) {
+        console.log('Logo ticket enviado:', r.id || '(sin id)');
+        return r;
+      });
+    }
+
+    // 2) Texto del consumo
+    return cadena
+      .then(function () {
+        return enviarAccionPrintPoint(
+          terminalId,
+          token,
+          'custom',
+          content,
+          ('consumo-' + String(mesa || '').replace(/\s+/g, '') + '-' + stamp).slice(
+            0,
+            64
+          )
+        );
+      })
+      .then(function (data) {
+        console.log('--- Ticket consumo enviado ---');
+        console.log('Action:', data.id || '(sin id)');
+        console.log('Status:', data.status || 'created');
+        console.log('------------------------------');
+        return {
+          ok: true,
+          id: data.id,
+          status: data.status || 'created',
+        };
       })
       .catch(function (err) {
         console.error('Error imprimiendo consumo Point:', err.message || err);
