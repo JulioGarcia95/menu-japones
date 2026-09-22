@@ -696,7 +696,7 @@ function finalizarCuentaMesa(mesa, metodoPago, extras) {
       };
     });
     imprimirConsumoPoint(mesa, pedidosTicket, total, {
-      delayMs: 10000,
+      delayMs: 2000,
       closedAt: ahora,
     }).then(function (r) {
       if (r && r.ok) {

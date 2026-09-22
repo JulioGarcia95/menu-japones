@@ -236,7 +236,7 @@
     }
     showToast(toastMsg);
 
-    // El servidor imprime el consumo ~10 s después del pago.
+    // El servidor imprime el consumo ~2 s después del pago.
     // Cámara lista para el siguiente QR.
     showScan();
     if (scanStatus) {
@@ -246,10 +246,10 @@
             mesaTxt +
             ' listo (propina ' +
             formatMoney(tipNum) +
-            '). Escanea el siguiente QR… El ticket de consumo sale solo en ~10 s.'
+            '). Escanea el siguiente QR…'
           : 'Cobro de ' +
             mesaTxt +
-            ' listo. Escanea el siguiente QR… El ticket de consumo sale solo en ~10 s.';
+            ' listo. Escanea el siguiente QR…';
     }
   }
 
