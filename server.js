@@ -1377,8 +1377,6 @@ app.post('/api/cuenta/point', requireAreas(['caja', 'admin']), function (req, re
       point: {
         terminal_id: terminalId,
         print_on_terminal: 'seller_ticket',
-        // Máx permitido por MP: 4 minutos
-        screen_time: 'PT4M',
       },
     },
   };
