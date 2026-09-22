@@ -11,6 +11,7 @@
   var pagarPointBtn = document.getElementById('caja-pagar-point');
   var cancelarPointBtn = document.getElementById('caja-cancelar-point');
   var imprimirConsumoBtn = document.getElementById('caja-imprimir-consumo');
+  var reimprimirConsumoBtn = document.getElementById('caja-reimprimir-consumo');
   var nuevaBtn = document.getElementById('caja-nueva');
   var readerEl = document.getElementById('caja-reader');
   var toastEl = document.getElementById('caja-toast');
@@ -19,6 +20,7 @@
   if (!scanSection || !cuentaSection) return;
 
   var cuentaActual = null;
+  var ultimaMesaPagada = null;
   var orderIdActual = null;
   var html5QrCode = null;
   var scanning = false;
@@ -123,12 +125,22 @@
     }
   }
 
+  function setReimprimirVisible(visible) {
+    if (!reimprimirConsumoBtn) return;
+    reimprimirConsumoBtn.hidden = !visible;
+    reimprimirConsumoBtn.disabled = !visible;
+    if (visible) {
+      reimprimirConsumoBtn.textContent = 'Reimprimir ticket de consumo';
+    }
+  }
+
   function showScan() {
     stopPoll();
     cuentaActual = null;
     orderIdActual = null;
     setCancelVisible(false);
     setImprimirVisible(false);
+    setReimprimirVisible(!!ultimaMesaPagada);
     cuentaSection.hidden = true;
     scanSection.hidden = false;
     if (statusEl) statusEl.textContent = '';
@@ -203,7 +215,7 @@
     var paidNum = Number(pagoInfo.paidAmount) || 0;
     var totalTxt = formatMoney(totalNum);
     var mesaPrint = cuentaActual && cuentaActual.mesa;
-    var pedidosPrint = (cuentaActual && cuentaActual.pedidos) || [];
+    if (mesaPrint) ultimaMesaPagada = mesaPrint;
 
     if (pagarPointBtn) {
       pagarPointBtn.disabled = true;
@@ -224,22 +236,8 @@
     }
     showToast(toastMsg);
 
-    // Esperar a que termine el ticket seller de MP; si el Point sigue
-    // ocupado el server reintenta. El logo no bloquea el texto.
-    if (mesaPrint) {
-      window.setTimeout(function () {
-        imprimirConsumoMesa(mesaPrint, pedidosPrint, totalNum, function (err) {
-          if (err && scanStatus) {
-            scanStatus.textContent =
-              'Siguiente cliente: escanea el QR. (Consumo: ' +
-              (err.message || 'no se imprimió') +
-              ')';
-          }
-        });
-      }, 4500);
-    }
-
-    // Cámara lista para el siguiente QR (sin alert bloqueante)
+    // El servidor imprime el consumo ~10 s después del pago.
+    // Cámara lista para el siguiente QR.
     showScan();
     if (scanStatus) {
       scanStatus.textContent =
@@ -248,8 +246,10 @@
             mesaTxt +
             ' listo (propina ' +
             formatMoney(tipNum) +
-            '). Escanea el siguiente QR…'
-          : 'Cobro de ' + mesaTxt + ' listo. Escanea el QR del siguiente cliente…';
+            '). Escanea el siguiente QR… El ticket de consumo sale solo en ~10 s.'
+          : 'Cobro de ' +
+            mesaTxt +
+            ' listo. Escanea el siguiente QR… El ticket de consumo sale solo en ~10 s.';
     }
   }
 
@@ -576,6 +576,47 @@
           imprimirConsumoBtn.textContent = 'Imprimir ticket de consumo';
           if (statusEl) {
             statusEl.textContent = err.message || 'No se pudo imprimir';
+          }
+          alert(err.message || 'No se pudo imprimir el ticket de consumo');
+        });
+    });
+  }
+
+  if (reimprimirConsumoBtn) {
+    reimprimirConsumoBtn.addEventListener('click', function () {
+      if (!ultimaMesaPagada) return;
+      reimprimirConsumoBtn.disabled = true;
+      reimprimirConsumoBtn.textContent = 'Imprimiendo…';
+      if (scanStatus) {
+        scanStatus.textContent =
+          'Reimprimiendo consumo de ' + ultimaMesaPagada + '…';
+      }
+
+      fetch('/api/cuenta/point/print-consumo', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mesa: ultimaMesaPagada }),
+      })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            if (!res.ok || !data.ok) throw new Error(data.error || 'Error');
+            return data;
+          });
+        })
+        .then(function () {
+          reimprimirConsumoBtn.disabled = false;
+          reimprimirConsumoBtn.textContent = 'Reimprimir ticket de consumo';
+          if (scanStatus) {
+            scanStatus.textContent =
+              'Ticket enviado. Revisa la impresora del Point.';
+          }
+        })
+        .catch(function (err) {
+          reimprimirConsumoBtn.disabled = false;
+          reimprimirConsumoBtn.textContent = 'Reimprimir ticket de consumo';
+          if (scanStatus) {
+            scanStatus.textContent = err.message || 'No se pudo imprimir';
           }
           alert(err.message || 'No se pudo imprimir el ticket de consumo');
         });

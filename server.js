@@ -20,6 +20,7 @@ const TICKET_LOGO_PATH = path.join(
   'ticket-perrita.png'
 );
 var ticketLogoBase64Cache = null;
+var ultimoPrintConsumo = null;
 const AUTH_COOKIE = 'matilda_staff';
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
 const AUTH_SECRET =
@@ -507,6 +508,10 @@ function enviarAccionPrintPoint(
           (data && data.raw) ||
           'HTTP ' + mpRes.status;
         msg = String(msg);
+        console.error(
+          'Print Point error [' + subtype + '] HTTP ' + mpRes.status + ':',
+          typeof raw === 'string' ? raw.slice(0, 500) : msg
+        );
         // Terminal ocupada (ticket seller u otra acción): reintentar
         if (
           intento < maxIntentos &&
@@ -567,7 +572,12 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     var content = armarContenidoTicketConsumo(mesa, pedidos, total, closedAt);
     var stamp = Date.now().toString(36);
     var mesaKey = String(mesa || '').replace(/\s+/g, '');
-    var logoB64 = leerLogoTicketBase64();
+    // Logo desactivado: la impresión image suele fallar/ocupar el Point
+    // y dejaba sin ticket de texto. Reactivar con PRINT_TICKET_LOGO=1
+    var logoB64 =
+      String(process.env.PRINT_TICKET_LOGO || '').trim() === '1'
+        ? leerLogoTicketBase64()
+        : null;
 
     console.log('--- Enviando ticket consumo Point ---');
     console.log('Mesa:', mesa);
@@ -576,7 +586,7 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     console.log('Chars:', content.length);
     console.log('------------------------------------');
 
-    // Logo primero (bonito), pero NUNCA bloquea el texto del consumo.
+    // Solo texto custom (lo que importa). Sin logo por defecto.
     var logoPaso = Promise.resolve({ logo: false });
     if (logoB64) {
       logoPaso = enviarAccionPrintPoint(
@@ -616,13 +626,23 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
           token,
           'custom',
           content,
-          'consumo-' + mesaKey + '-' + stamp
+          'consumo-' + mesaKey + '-' + stamp,
+          1,
+          5
         ).then(function (data) {
           console.log('--- Ticket consumo enviado ---');
           console.log('Action:', data.id || '(sin id)');
           console.log('Status:', data.status || 'created');
           console.log('Logo:', logoInfo && logoInfo.logo ? 'si' : 'no');
           console.log('------------------------------');
+          ultimoPrintConsumo = {
+            ok: true,
+            at: new Date().toISOString(),
+            mesa: mesa,
+            actionId: data.id,
+            status: data.status || 'created',
+            error: null,
+          };
           return {
             ok: true,
             id: data.id,
@@ -634,6 +654,14 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
       })
       .catch(function (err) {
         console.error('Error imprimiendo consumo Point:', err.message || err);
+        ultimoPrintConsumo = {
+          ok: false,
+          at: new Date().toISOString(),
+          mesa: mesa,
+          actionId: null,
+          status: null,
+          error: err.message || String(err),
+        };
         return { ok: false, error: err.message || String(err) };
       });
   };
@@ -718,6 +746,34 @@ function finalizarCuentaMesa(mesa, metodoPago, extras) {
     lastPaidAmount: paidAmount > 0 ? paidAmount : null,
   };
   guardarMesas(mesas);
+
+  // Ticket de consumo: lo dispara el servidor (no depende del celular/caja).
+  // Espera a que termine el seller_ticket de Mercado Pago.
+  if (metodoPago === 'point' && deMesa.length) {
+    var pedidosTicket = deMesa.map(function (p) {
+      return {
+        id: p.id,
+        createdAt: p.createdAt,
+        status: normalizarEstado(p.status),
+        items: p.items || [],
+        total: Number(p.total) || 0,
+      };
+    });
+    imprimirConsumoPoint(mesa, pedidosTicket, total, {
+      delayMs: 10000,
+      closedAt: ahora,
+    }).then(function (r) {
+      if (r && r.ok) {
+        console.log('Print consumo OK (auto):', mesa, r.id || '');
+      } else {
+        console.error(
+          'Print consumo falló (auto):',
+          mesa,
+          (r && r.error) || 'sin detalle'
+        );
+      }
+    });
+  }
 
   return {
     mesa: mesa,
@@ -1961,6 +2017,7 @@ app.post(
           return res.status(502).json({
             ok: false,
             error: errMsg,
+            last: ultimoPrintConsumo,
           });
         }
         res.json({
@@ -1977,6 +2034,20 @@ app.post(
           error: err.message || 'Error al imprimir consumo',
         });
       });
+  }
+);
+
+app.get(
+  '/api/cuenta/point/print-status',
+  requireAreas(['caja', 'admin']),
+  function (req, res) {
+    res.json({
+      ok: true,
+      last: ultimoPrintConsumo,
+      logoEnv: String(process.env.PRINT_TICKET_LOGO || '').trim() === '1',
+      terminalConfigured: Boolean(pointTerminalId()),
+      tokenConfigured: Boolean(mpAccessToken()),
+    });
   }
 );
 
