@@ -696,8 +696,8 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
               'Consumo en terminal:',
               (st && st.status) || '(sin status)'
             );
-            // Pequeña pausa para que termine de salir el papel del consumo
-            return esperarMs(3000);
+            // Pausa breve para que termine de salir el papel del consumo
+            return esperarMs(1000);
           })
           .then(function () {
             console.log('--- Enviando ticket perrita (aparte) ---');
