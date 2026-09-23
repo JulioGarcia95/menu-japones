@@ -1116,6 +1116,39 @@ body.success-open {
   margin: 0 0 1.25rem;
 }
 
+.caja-inicio-aviso[hidden] {
+  display: none !important;
+}
+
+.caja-inicio-aviso {
+  max-width: 28rem;
+  margin: 0 auto 1.25rem;
+  padding: 0.95rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(230, 57, 70, 0.4);
+  background: rgba(230, 57, 70, 0.12);
+  text-align: center;
+}
+
+.caja-inicio-aviso-titulo {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.caja-inicio-aviso-texto {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.caja-inicio-aviso-texto strong {
+  color: var(--lacquer);
+}
+
 .caja-manual {
   display: grid;
   gap: 0.75rem;
