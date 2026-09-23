@@ -654,96 +654,79 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     console.log('Chars:', content.length);
     console.log('------------------------------------');
 
-    // 1) Ticket de consumo (texto). 2) Cuando el Point lo toma, otro ticket = perrita.
-    return enviarAccionPrintPoint(
-      terminalId,
-      token,
-      'custom',
-      content,
-      'consumo-' + mesaKey + '-' + stamp,
-      1,
-      20
-    )
-      .then(function (data) {
-        console.log('--- Ticket consumo enviado ---');
-        console.log('Action:', data.id || '(sin id)');
-        console.log('Status:', data.status || 'created');
-        console.log('------------------------------');
+    // 1) Perrita primero. 2) Cuando el Point la toma, ticket de consumo.
+    // Si la perrita falla, igual se imprime el consumo.
+    var logoPaso = Promise.resolve({ logo: false, logoId: null });
+    if (logoB64) {
+      logoPaso = enviarAccionPrintPoint(
+        terminalId,
+        token,
+        'image',
+        logoB64,
+        'logo-' + mesaKey + '-' + stamp,
+        1,
+        10
+      )
+        .then(function (logoRes) {
+          console.log('--- Ticket perrita enviado ---');
+          console.log('Action:', logoRes.id || '(sin id)');
+          return esperarAccionEnTerminal(logoRes.id, token).then(function (st) {
+            console.log(
+              'Perrita en terminal:',
+              (st && st.status) || '(sin status)'
+            );
+            return esperarMs(1000).then(function () {
+              return { logo: true, logoId: logoRes.id };
+            });
+          });
+        })
+        .catch(function (logoErr) {
+          console.warn(
+            'Ticket perrita falló, sigo con consumo:',
+            logoErr.message || logoErr
+          );
+          return {
+            logo: false,
+            logoId: null,
+            logoError: logoErr.message || String(logoErr),
+          };
+        });
+    }
 
-        var result = {
-          ok: true,
-          id: data.id,
-          status: data.status || 'created',
-          logo: false,
-        };
-
-        if (!logoB64) {
+    return logoPaso
+      .then(function (logoInfo) {
+        return enviarAccionPrintPoint(
+          terminalId,
+          token,
+          'custom',
+          content,
+          'consumo-' + mesaKey + '-' + stamp,
+          1,
+          20
+        ).then(function (data) {
+          console.log('--- Ticket consumo enviado ---');
+          console.log('Action:', data.id || '(sin id)');
+          console.log('Status:', data.status || 'created');
+          console.log('Logo:', logoInfo && logoInfo.logo ? 'si' : 'no');
+          console.log('------------------------------');
           ultimoPrintConsumo = {
             ok: true,
             at: new Date().toISOString(),
             mesa: mesa,
             actionId: data.id,
             status: data.status || 'created',
-            logo: false,
+            logo: !!(logoInfo && logoInfo.logo),
+            logoId: logoInfo && logoInfo.logoId,
+            logoError: logoInfo && logoInfo.logoError,
             error: null,
           };
-          return result;
-        }
-
-        return esperarAccionEnTerminal(data.id, token)
-          .then(function (st) {
-            console.log(
-              'Consumo en terminal:',
-              (st && st.status) || '(sin status)'
-            );
-            // Pausa breve para que termine de salir el papel del consumo
-            return esperarMs(1000);
-          })
-          .then(function () {
-            console.log('--- Enviando ticket perrita (aparte) ---');
-            return enviarAccionPrintPoint(
-              terminalId,
-              token,
-              'image',
-              logoB64,
-              'logo-' + mesaKey + '-' + stamp,
-              1,
-              10
-            );
-          })
-          .then(function (logoRes) {
-            console.log('Ticket perrita enviado:', logoRes.id || '(sin id)');
-            result.logo = true;
-            result.logoId = logoRes.id;
-            ultimoPrintConsumo = {
-              ok: true,
-              at: new Date().toISOString(),
-              mesa: mesa,
-              actionId: data.id,
-              status: data.status || 'created',
-              logo: true,
-              logoId: logoRes.id,
-              error: null,
-            };
-            return result;
-          })
-          .catch(function (logoErr) {
-            console.warn(
-              'Ticket perrita no enviado (consumo sí):',
-              logoErr.message || logoErr
-            );
-            ultimoPrintConsumo = {
-              ok: true,
-              at: new Date().toISOString(),
-              mesa: mesa,
-              actionId: data.id,
-              status: data.status || 'created',
-              logo: false,
-              logoError: logoErr.message || String(logoErr),
-              error: null,
-            };
-            return result;
-          });
+          return {
+            ok: true,
+            id: data.id,
+            status: data.status || 'created',
+            logo: !!(logoInfo && logoInfo.logo),
+          };
+        });
       })
       .catch(function (err) {
         console.error('Error imprimiendo consumo Point:', err.message || err);
