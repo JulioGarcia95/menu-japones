@@ -1,0 +1,25 @@
+{
+  "name": "Matilda Kitchen — Caja",
+  "short_name": "Caja",
+  "description": "Kiosko de cobro Matilda Kitchen",
+  "start_url": "/caja.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#101215",
+  "theme_color": "#101215",
+  "icons": [
+    {
+      "src": "/branding/caja-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/branding/caja-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

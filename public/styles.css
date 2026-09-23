@@ -1322,6 +1322,22 @@ body.caja-kiosk {
   padding: 0.9rem 1rem 1.1rem;
 }
 
+.caja-kiosk-install-hint {
+  margin: 0 0 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(230, 57, 70, 0.28);
+  background: rgba(230, 57, 70, 0.1);
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.caja-kiosk-install-hint strong {
+  color: var(--lacquer);
+}
+
 .caja-kiosk .caja-cuenta {
   flex: 1;
   display: flex;
