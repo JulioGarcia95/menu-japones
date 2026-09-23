@@ -805,6 +805,40 @@ body.success-open {
   color: var(--mute);
 }
 
+.cocina-edit-btn {
+  display: inline-block;
+  margin-top: 0.85rem;
+  padding: 0.55rem 0.95rem;
+  border: 1px solid var(--lacquer);
+  border-radius: 0.45rem;
+  background: var(--lacquer);
+  color: #fff;
+  text-decoration: none;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.cocina-edit-btn:hover,
+.cocina-edit-btn:focus-visible {
+  background: var(--lacquer-deep);
+  border-color: var(--lacquer-deep);
+  outline: none;
+}
+
+.cocina-edit-btn-back {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.cocina-edit-btn-back:hover,
+.cocina-edit-btn-back:focus-visible {
+  background: var(--surface);
+  border-color: var(--lacquer);
+  color: var(--lacquer);
+}
+
 .cocina-live {
   display: flex;
   align-items: center;
