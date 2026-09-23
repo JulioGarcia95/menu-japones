@@ -298,6 +298,7 @@
     var price = priceWithOptions(pendingDish.price, config, optionChoices);
     closeDishOptions();
     addItem(finalId, finalName, price);
+    animateAddToCart(dishOptionsAdd || cartToggle);
   }
 
   function getSessionId() {
@@ -527,6 +528,62 @@
     return escapeHtml(str).replace(/'/g, '&#39;');
   }
 
+  function animateAddToCart(fromEl) {
+    if (!cartToggle || !fromEl || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (cartToggle) {
+        cartToggle.classList.remove('is-bump');
+        void cartToggle.offsetWidth;
+        cartToggle.classList.add('is-bump');
+      }
+      return;
+    }
+
+    var img = fromEl.querySelector ? fromEl.querySelector('.item-photo') : null;
+    var startEl = img || fromEl;
+    var from = startEl.getBoundingClientRect();
+    var to = cartToggle.getBoundingClientRect();
+    if (!from.width || !to.width) return;
+
+    var size = Math.max(44, Math.min(64, from.width * 0.28));
+    var flyer = document.createElement('div');
+    flyer.className = 'cart-fly';
+    flyer.setAttribute('aria-hidden', 'true');
+    if (img && img.currentSrc) {
+      flyer.style.backgroundImage = 'url("' + img.currentSrc + '")';
+    } else if (img && img.src) {
+      flyer.style.backgroundImage = 'url("' + img.src + '")';
+    }
+
+    var startX = from.left + from.width / 2 - size / 2;
+    var startY = from.top + from.height / 2 - size / 2;
+    var endX = to.left + to.width / 2 - size / 2;
+    var endY = to.top + to.height / 2 - size / 2;
+
+    flyer.style.width = size + 'px';
+    flyer.style.height = size + 'px';
+    flyer.style.left = startX + 'px';
+    flyer.style.top = startY + 'px';
+    document.body.appendChild(flyer);
+
+    window.requestAnimationFrame(function () {
+      flyer.classList.add('is-flying');
+      flyer.style.transform =
+        'translate(' +
+        (endX - startX) +
+        'px, ' +
+        (endY - startY) +
+        'px) scale(0.28)';
+      flyer.style.opacity = '0.35';
+    });
+
+    window.setTimeout(function () {
+      if (flyer.parentNode) flyer.parentNode.removeChild(flyer);
+      cartToggle.classList.remove('is-bump');
+      void cartToggle.offsetWidth;
+      cartToggle.classList.add('is-bump');
+    }, 560);
+  }
+
   document.querySelectorAll('.btn-add').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var id = btn.dataset.id;
@@ -540,9 +597,10 @@
 
       addItem(id, name, price);
       btn.classList.add('is-added');
+      animateAddToCart(btn);
       window.setTimeout(function () {
         btn.classList.remove('is-added');
-      }, 450);
+      }, 480);
     });
   });
 

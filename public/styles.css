@@ -2740,10 +2740,11 @@ body.pago-modal-open {
 }
 
 .menu-dish.btn-add.is-added {
-  transform: scale(0.97);
+  animation: dish-pop 0.48s ease;
   background: var(--surface);
-  border-color: var(--lacquer-deep);
+  border-color: var(--lacquer);
   color: #fff;
+  box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.28);
 }
 
 .menu-dish.btn-add:disabled {
@@ -2751,6 +2752,74 @@ body.pago-modal-open {
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+  animation: none;
+}
+
+@keyframes dish-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(0.94);
+  }
+  70% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.cart-fly {
+  position: fixed;
+  z-index: 120;
+  border-radius: 14px;
+  background-color: var(--lacquer);
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+  border: 2px solid rgba(241, 238, 232, 0.35);
+  opacity: 1;
+  transform: translate(0, 0) scale(1);
+  transition:
+    transform 0.55s cubic-bezier(0.22, 0.9, 0.28, 1),
+    opacity 0.55s ease;
+  will-change: transform, opacity;
+}
+
+.cart-fly.is-flying {
+  border-radius: 999px;
+}
+
+.cart-tab.is-bump {
+  animation: cart-bump 0.45s ease;
+}
+
+@keyframes cart-bump {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.12);
+  }
+  60% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cart-fly {
+    display: none;
+  }
+
+  .menu-dish.btn-add.is-added,
+  .cart-tab.is-bump {
+    animation: none;
+  }
 }
 
 .item-copy h3 {
