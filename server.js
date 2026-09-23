@@ -413,18 +413,18 @@ function armarContenidoTicketConsumo(mesa, pedidos, total, closedAt, tipAmount) 
   Object.keys(lineas).forEach(function (key) {
     var L = lineas[key];
     var sub = L.qty * L.price;
-    parts.push('{s}' + L.qty + ' x ' + L.nombre + '{/s}{br}');
-    parts.push('{s}   ' + formatoMontoTicket(sub) + '{/s}{br}');
+    parts.push(L.qty + ' x ' + L.nombre + '{br}');
+    parts.push('   ' + formatoMontoTicket(sub) + '{br}');
   });
 
   parts.push('{br}');
   parts.push('--------------------------------{br}');
   if (tip > 0) {
     parts.push(
-      '{center}{s}Subtotal  ' + formatoMontoTicket(subtotal) + '{/s}{/center}{br}'
+      '{center}Subtotal  ' + formatoMontoTicket(subtotal) + '{/center}{br}'
     );
     parts.push(
-      '{center}{s}Propina  ' + formatoMontoTicket(tip) + '{/s}{/center}{br}'
+      '{center}Propina  ' + formatoMontoTicket(tip) + '{/center}{br}'
     );
   }
   parts.push(
