@@ -65,7 +65,7 @@ var PAGE_AREAS = {
   '/clientes.html': ['caja'],
   '/caja.html': ['caja'],
   '/admin.html': ['admin'],
-  '/editar-cocina.html': ['cocina', 'caja', 'admin'],
+  '/editar-cocina.html': ['cocina', 'admin'],
   '/staff-menu.html': ['caja', 'admin'],
 };
 
@@ -279,7 +279,7 @@ app.get('/api/menu', function (req, res) {
 
 app.patch(
   '/api/menu/:id',
-  requireAreas(['cocina', 'caja', 'admin']),
+  requireAreas(['cocina', 'admin']),
   function (req, res) {
     var id = String(req.params.id || '').trim();
     if (!MENU_BY_ID[id]) {
