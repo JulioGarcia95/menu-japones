@@ -512,26 +512,33 @@ function enviarAccionPrintPoint(
       if (!mpRes.ok) {
         var msg =
           (data && data.message) ||
+          (data && data.cause && data.cause[0] && data.cause[0].description) ||
+          (data && data.cause && data.cause[0] && data.cause[0].code) ||
           (data && data.error) ||
+          (data && data.status) ||
           (Array.isArray(data) && JSON.stringify(data)) ||
           (data && data.raw) ||
-          'HTTP ' + mpRes.status;
+          ('HTTP ' + mpRes.status);
         msg = String(msg);
+        if (mpRes.status === 409 && msg === 'HTTP 409') {
+          msg = 'already_queued';
+        }
         console.error(
           'Print Point error [' + subtype + '] HTTP ' + mpRes.status + ':',
           typeof raw === 'string' ? raw.slice(0, 500) : msg
         );
-        // Terminal ocupada (propina / ticket MP / pantalla post-pago):
-        // reintentar hasta ~30s; el custom suele salir al tocar Inicio.
+        // Terminal ocupada: reintentar (incluye HTTP 409)
         if (
           intento < maxIntentos &&
-          /already_queued|busy|in.?progress|conflict|429/i.test(msg)
+          (mpRes.status === 409 ||
+            mpRes.status === 429 ||
+            /already_queued|busy|in.?progress|conflict|409/i.test(msg))
         ) {
           console.warn(
             'Print ' + subtype + ' ocupado, reintento ' + (intento + 1) + '…',
             msg
           );
-          return esperarMs(1500).then(function () {
+          return esperarMs(2000 * intento).then(function () {
             return enviarAccionPrintPoint(
               terminalId,
               token,
@@ -543,7 +550,7 @@ function enviarAccionPrintPoint(
             );
           });
         }
-        throw new Error(msg);
+        throw new Error(msg + (mpRes.status ? ' (HTTP ' + mpRes.status + ')' : ''));
       }
       return {
         ok: true,
@@ -654,70 +661,89 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     console.log('Chars:', content.length);
     console.log('------------------------------------');
 
-    // Perrita → 0.1 s → consumo (no pegados; sin esperar a Inicio).
-    var logoPaso = Promise.resolve({ logo: false, logoId: null });
-    if (logoB64) {
-      logoPaso = enviarAccionPrintPoint(
+    // El Point solo permite 1 acción en cola (HTTP 409 si mandas 2).
+    // Flujo: perrita → esperar Inicio (on_terminal) → 0.1s → consumo.
+    function enviarConsumo(logoInfo) {
+      return enviarAccionPrintPoint(
         terminalId,
         token,
-        'image',
-        logoB64,
-        'logo-' + mesaKey + '-' + stamp,
+        'custom',
+        content,
+        'consumo-' + mesaKey + '-' + stamp,
         1,
-        10
-      )
-        .then(function (logoRes) {
-          console.log('Ticket perrita enviado:', logoRes.id || '(sin id)');
-          return esperarMs(100).then(function () {
-            return { logo: true, logoId: logoRes.id };
-          });
-        })
-        .catch(function (logoErr) {
-          console.warn(
-            'Ticket perrita falló, sigo con consumo:',
-            logoErr.message || logoErr
-          );
-          return {
-            logo: false,
-            logoId: null,
-            logoError: logoErr.message || String(logoErr),
-          };
-        });
+        20
+      ).then(function (data) {
+        console.log('--- Ticket consumo enviado ---');
+        console.log('Action:', data.id || '(sin id)');
+        console.log('Status:', data.status || 'created');
+        console.log('Logo:', logoInfo && logoInfo.logo ? 'si' : 'no');
+        console.log('------------------------------');
+        ultimoPrintConsumo = {
+          ok: true,
+          at: new Date().toISOString(),
+          mesa: mesa,
+          actionId: data.id,
+          status: data.status || 'created',
+          logo: !!(logoInfo && logoInfo.logo),
+          logoId: logoInfo && logoInfo.logoId,
+          logoError: logoInfo && logoInfo.logoError,
+          error: null,
+        };
+        return {
+          ok: true,
+          id: data.id,
+          status: data.status || 'created',
+          logo: !!(logoInfo && logoInfo.logo),
+        };
+      });
     }
 
-    return logoPaso
-      .then(function (logoInfo) {
-        return enviarAccionPrintPoint(
-          terminalId,
-          token,
-          'custom',
-          content,
-          'consumo-' + mesaKey + '-' + stamp,
-          1,
-          20
-        ).then(function (data) {
-          console.log('--- Ticket consumo enviado ---');
-          console.log('Action:', data.id || '(sin id)');
-          console.log('Status:', data.status || 'created');
-          console.log('Logo:', logoInfo && logoInfo.logo ? 'si' : 'no');
-          console.log('------------------------------');
-          ultimoPrintConsumo = {
-            ok: true,
-            at: new Date().toISOString(),
-            mesa: mesa,
-            actionId: data.id,
-            status: data.status || 'created',
-            logo: !!(logoInfo && logoInfo.logo),
-            logoId: logoInfo && logoInfo.logoId,
-            logoError: logoInfo && logoInfo.logoError,
-            error: null,
-          };
-          return {
-            ok: true,
-            id: data.id,
-            status: data.status || 'created',
-            logo: !!(logoInfo && logoInfo.logo),
-          };
+    if (!logoB64) {
+      return enviarConsumo({ logo: false }).catch(function (err) {
+        console.error('Error imprimiendo consumo Point:', err.message || err);
+        ultimoPrintConsumo = {
+          ok: false,
+          at: new Date().toISOString(),
+          mesa: mesa,
+          actionId: null,
+          status: null,
+          error: err.message || String(err),
+        };
+        return { ok: false, error: err.message || String(err) };
+      });
+    }
+
+    return enviarAccionPrintPoint(
+      terminalId,
+      token,
+      'image',
+      logoB64,
+      'logo-' + mesaKey + '-' + stamp,
+      1,
+      15
+    )
+      .then(function (logoRes) {
+        console.log('Ticket perrita enviado:', logoRes.id || '(sin id)');
+        console.log('Esperando Ir al inicio / on_terminal…');
+        return esperarAccionEnTerminal(logoRes.id, token).then(function (st) {
+          console.log(
+            'Perrita en terminal:',
+            (st && st.status) || '(sin status)'
+          );
+          return esperarMs(100).then(function () {
+            return enviarConsumo({ logo: true, logoId: logoRes.id });
+          });
+        });
+      })
+      .catch(function (err) {
+        // Si la perrita falla por 409 u otro, igual intentamos el consumo solo
+        console.warn(
+          'Perrita no lista, intento solo consumo:',
+          err.message || err
+        );
+        return enviarConsumo({
+          logo: false,
+          logoError: err.message || String(err),
         });
       })
       .catch(function (err) {
@@ -2180,34 +2206,24 @@ app.post(
 
     console.log('--- Ticket prueba (misma funcion que consumo) ---');
 
+    // Responder al toque y seguir en background (espera Inicio puede tardar)
+    res.json({
+      ok: true,
+      note:
+        'Perrita encolada. Toca Ir al inicio en el Point; luego sale el consumo solo.',
+    });
+
     imprimirConsumoPoint('Mesa01', pedidosPrueba, 20, {
       delayMs: 0,
       closedAt: new Date().toISOString(),
       tipAmount: 2,
-    })
-      .then(function (result) {
-        if (!result || !result.ok) {
-          return res.status(502).json({
-            ok: false,
-            error: (result && result.error) || 'No se pudo imprimir la prueba',
-            last: ultimoPrintConsumo,
-          });
-        }
-        res.json({
-          ok: true,
-          actionId: result.id,
-          logo: result.logo,
-          note:
-            'Prueba enviada (perrita + 0.1s + consumo). Toca Ir al inicio en el Point.',
-        });
-      })
-      .catch(function (err) {
-        console.error('Print prueba falló:', err.message || err);
-        res.status(502).json({
-          ok: false,
-          error: err.message || 'No se pudo imprimir la prueba',
-        });
-      });
+    }).then(function (result) {
+      if (result && result.ok) {
+        console.log('Prueba OK:', result.id || '', 'logo:', result.logo);
+      } else {
+        console.error('Prueba falló:', (result && result.error) || 'sin detalle');
+      }
+    });
   }
 );
 

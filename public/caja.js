@@ -720,7 +720,7 @@
       printPruebaBtn.textContent = 'Enviando prueba…';
       if (scanStatus) {
         scanStatus.textContent =
-          'Enviando prueba: perrita → 0.1s → consumo…';
+          'Perrita encolada. Toca Ir al inicio en el Point; luego sale el consumo.';
       }
       setInicioAvisoVisible(true);
 
@@ -742,7 +742,7 @@
           if (scanStatus) {
             scanStatus.textContent =
               data.note ||
-              'Prueba enviada. Toca Ir al inicio en el Point.';
+              'Perrita encolada. Toca Ir al inicio en el Point.';
           }
         })
         .catch(function (err) {
