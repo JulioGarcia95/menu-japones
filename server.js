@@ -654,9 +654,7 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     console.log('Chars:', content.length);
     console.log('------------------------------------');
 
-    // Encolar AMBOS ya: perrita y luego consumo.
-    // No esperamos a que salga la perrita: si no, el consumo llega
-    // tarde y hace falta otro Inicio que casi nadie da.
+    // Perrita → 0.1 s → consumo (no pegados; sin esperar a Inicio).
     var logoPaso = Promise.resolve({ logo: false, logoId: null });
     if (logoB64) {
       logoPaso = enviarAccionPrintPoint(
@@ -669,8 +667,10 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
         10
       )
         .then(function (logoRes) {
-          console.log('Ticket perrita encolado:', logoRes.id || '(sin id)');
-          return { logo: true, logoId: logoRes.id };
+          console.log('Ticket perrita enviado:', logoRes.id || '(sin id)');
+          return esperarMs(100).then(function () {
+            return { logo: true, logoId: logoRes.id };
+          });
         })
         .catch(function (logoErr) {
           console.warn(
@@ -696,7 +696,7 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
           1,
           20
         ).then(function (data) {
-          console.log('--- Ticket consumo encolado ---');
+          console.log('--- Ticket consumo enviado ---');
           console.log('Action:', data.id || '(sin id)');
           console.log('Status:', data.status || 'created');
           console.log('Logo:', logoInfo && logoInfo.logo ? 'si' : 'no');
