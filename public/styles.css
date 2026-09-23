@@ -1803,6 +1803,131 @@ body.dish-options-open {
   color: #fff;
 }
 
+body.alcohol-warn-open {
+  overflow: hidden;
+}
+
+.alcohol-warn[hidden] {
+  display: none !important;
+}
+
+.alcohol-warn {
+  position: fixed;
+  inset: 0;
+  z-index: 75;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  pointer-events: none;
+}
+
+.alcohol-warn.is-visible {
+  pointer-events: auto;
+}
+
+.alcohol-warn-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 8, 12, 0.72);
+}
+
+.alcohol-warn-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 26rem);
+  padding: 1.35rem 1.35rem 1.25rem;
+  border-radius: 14px;
+  border: 1px solid rgba(230, 57, 70, 0.45);
+  background:
+    linear-gradient(180deg, rgba(230, 57, 70, 0.12), transparent 42%),
+    var(--surface);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  transform: translateY(12px) scale(0.97);
+  opacity: 0;
+  transition: transform 0.28s ease, opacity 0.28s ease;
+}
+
+.alcohol-warn.is-visible .alcohol-warn-card {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.alcohol-warn-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--lacquer);
+}
+
+.alcohol-warn-card h2 {
+  margin: 0 0 0.55rem;
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.alcohol-warn-text {
+  margin: 0 0 0.85rem;
+  color: var(--mute);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.alcohol-warn-list {
+  margin: 0 0 0.85rem;
+  padding: 0.75rem 0.85rem 0.75rem 1.35rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(16, 18, 21, 0.55);
+  color: var(--ink);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.alcohol-warn-list li + li {
+  margin-top: 0.35rem;
+}
+
+.alcohol-warn-dish {
+  margin: 0 0 1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.alcohol-warn-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 0.55rem;
+}
+
+.alcohol-warn-cancel,
+.alcohol-warn-confirm {
+  appearance: none;
+  border: 0;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 0.85rem 0.75rem;
+  border-radius: 10px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.alcohol-warn-cancel {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.alcohol-warn-confirm {
+  background: var(--lacquer);
+  color: #fff;
+}
+
 .pagar-warn[hidden] {
   display: none !important;
 }

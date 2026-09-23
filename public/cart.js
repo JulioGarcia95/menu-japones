@@ -38,9 +38,21 @@
   var dishOptionsGroups = document.getElementById('dish-options-groups');
   var dishOptionsCancel = document.getElementById('dish-options-cancel');
   var dishOptionsAdd = document.getElementById('dish-options-add');
+  var alcoholWarn = document.getElementById('alcohol-warn');
+  var alcoholWarnBackdrop = document.getElementById('alcohol-warn-backdrop');
+  var alcoholWarnCancel = document.getElementById('alcohol-warn-cancel');
+  var alcoholWarnConfirm = document.getElementById('alcohol-warn-confirm');
+  var alcoholWarnDish = document.getElementById('alcohol-warn-dish');
 
   var pendingDish = null;
+  var pendingAlcohol = null;
   var optionChoices = {};
+
+  var ALCOHOL_IDS = {
+    sake: true,
+    cerveza: true,
+    umeshu: true,
+  };
 
   var DISH_OPTIONS = {
     ramen: {
@@ -528,6 +540,63 @@
     return escapeHtml(str).replace(/'/g, '&#39;');
   }
 
+  function isAlcoholDrink(btn, id) {
+    if (ALCOHOL_IDS[id]) return true;
+    if (btn && btn.getAttribute('data-alcohol') === '1') return true;
+    var item = btn && btn.closest ? btn.closest('.menu-item') : null;
+    return !!(item && item.getAttribute('data-sub') === 'con-alcohol');
+  }
+
+  function openAlcoholWarn(btn, id, name, price) {
+    pendingAlcohol = { btn: btn, id: id, name: name, price: price };
+    if (alcoholWarnDish) {
+      alcoholWarnDish.textContent = 'Producto: ' + name;
+    }
+    if (!alcoholWarn) {
+      finishAlcoholAdd();
+      return;
+    }
+    alcoholWarn.hidden = false;
+    document.body.classList.add('alcohol-warn-open');
+    window.requestAnimationFrame(function () {
+      alcoholWarn.classList.add('is-visible');
+    });
+  }
+
+  function closeAlcoholWarn() {
+    pendingAlcohol = null;
+    if (!alcoholWarn) return;
+    alcoholWarn.classList.remove('is-visible');
+    document.body.classList.remove('alcohol-warn-open');
+    window.setTimeout(function () {
+      if (!document.body.classList.contains('alcohol-warn-open')) {
+        alcoholWarn.hidden = true;
+      }
+    }, 250);
+  }
+
+  function finishAlcoholAdd() {
+    if (!pendingAlcohol) return;
+    var info = pendingAlcohol;
+    var btn = info.btn;
+    pendingAlcohol = null;
+    if (alcoholWarn) {
+      alcoholWarn.classList.remove('is-visible');
+      document.body.classList.remove('alcohol-warn-open');
+      alcoholWarn.hidden = true;
+    }
+    addItem(info.id, info.name, info.price);
+    if (btn) {
+      btn.classList.add('is-added');
+      animateAddToCart(btn);
+      window.setTimeout(function () {
+        btn.classList.remove('is-added');
+      }, 480);
+    } else {
+      animateAddToCart(cartToggle);
+    }
+  }
+
   function animateAddToCart(fromEl) {
     if (!cartToggle || !fromEl || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       if (cartToggle) {
@@ -595,6 +664,11 @@
         return;
       }
 
+      if (isAlcoholDrink(btn, id)) {
+        openAlcoholWarn(btn, id, name, price);
+        return;
+      }
+
       addItem(id, name, price);
       btn.classList.add('is-added');
       animateAddToCart(btn);
@@ -603,6 +677,16 @@
       }, 480);
     });
   });
+
+  if (alcoholWarnCancel) {
+    alcoholWarnCancel.addEventListener('click', closeAlcoholWarn);
+  }
+  if (alcoholWarnBackdrop) {
+    alcoholWarnBackdrop.addEventListener('click', closeAlcoholWarn);
+  }
+  if (alcoholWarnConfirm) {
+    alcoholWarnConfirm.addEventListener('click', finishAlcoholAdd);
+  }
 
   if (dishOptionsGroups) {
     dishOptionsGroups.addEventListener('click', function (e) {

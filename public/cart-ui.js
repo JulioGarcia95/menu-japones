@@ -57,5 +57,25 @@
     '<button type="button" class="dish-options-add" id="dish-options-add">Agregar</button>' +
     '</div>' +
     '</div>' +
+    '</div>' +
+    '<div class="alcohol-warn" id="alcohol-warn" hidden>' +
+    '<div class="alcohol-warn-backdrop" id="alcohol-warn-backdrop"></div>' +
+    '<div class="alcohol-warn-card" role="alertdialog" aria-modal="true" aria-labelledby="alcohol-warn-title" aria-describedby="alcohol-warn-text">' +
+    '<p class="alcohol-warn-kicker">Aviso de bebida alcohólica</p>' +
+    '<h2 id="alcohol-warn-title">Confirmación requerida</h2>' +
+    '<p id="alcohol-warn-text" class="alcohol-warn-text">' +
+    'La venta de alcohol es solo para personas mayores de 18 años. ' +
+    'Está prohibido beber y conducir. Si va a manejar, no consuma alcohol.' +
+    '</p>' +
+    '<ul class="alcohol-warn-list">' +
+    '<li>Confirmo que soy mayor de 18 años.</li>' +
+    '<li>No conduciré después de beber.</li>' +
+    '</ul>' +
+    '<p class="alcohol-warn-dish" id="alcohol-warn-dish"></p>' +
+    '<div class="alcohol-warn-actions">' +
+    '<button type="button" class="alcohol-warn-cancel" id="alcohol-warn-cancel">Cancelar</button>' +
+    '<button type="button" class="alcohol-warn-confirm" id="alcohol-warn-confirm">Acepto y agregar</button>' +
+    '</div>' +
+    '</div>' +
     '</div>';
 })();
