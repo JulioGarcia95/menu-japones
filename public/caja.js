@@ -718,11 +718,7 @@
     printPruebaBtn.addEventListener('click', function () {
       printPruebaBtn.disabled = true;
       printPruebaBtn.textContent = 'Enviando prueba…';
-      if (scanStatus) {
-        scanStatus.textContent =
-          'Prueba: Ir al inicio (perrita), luego otra vez Ir al inicio (consumo).';
-      }
-      setInicioAvisoVisible(true);
+      if (scanStatus) scanStatus.textContent = 'Enviando prueba…';
 
       fetch('/api/cuenta/point/print-prueba', {
         method: 'POST',
@@ -740,9 +736,7 @@
           printPruebaBtn.disabled = false;
           printPruebaBtn.textContent = 'Ticket de prueba (perrita + consumo)';
           if (scanStatus) {
-            scanStatus.textContent =
-              data.note ||
-              'Prueba encolada. Toca Ir al inicio en el Point.';
+            scanStatus.textContent = data.note || 'Prueba enviada.';
           }
         })
         .catch(function (err) {
