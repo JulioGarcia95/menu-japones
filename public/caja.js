@@ -292,7 +292,7 @@
         ' · Pago aprobado';
     }
     toastMsg +=
-      ' · Da click en Ir al inicio en la terminal para su ticket de compra';
+      ' · Ir al inicio en el Point: perrita, luego otra vez Ir al inicio para el consumo';
     showToast(toastMsg);
 
     // MP sale solo; consumo al tocar Inicio en el Point.
@@ -720,7 +720,7 @@
       printPruebaBtn.textContent = 'Enviando prueba…';
       if (scanStatus) {
         scanStatus.textContent =
-          'Perrita encolada. Toca Ir al inicio en el Point; luego sale el consumo.';
+          'Enviando… Toca Ir al inicio (perrita); al terminar, otra vez Ir al inicio (consumo).';
       }
       setInicioAvisoVisible(true);
 

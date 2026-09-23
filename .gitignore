@@ -6,3 +6,4 @@ npm-debug.log*
 Thumbs.db
 *.log
 .cursor/
+print-point.json

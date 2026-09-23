@@ -13,6 +13,7 @@ const PUBLIC_URL = String(process.env.PUBLIC_URL || '')
 const PEDIDOS_PATH = path.join(__dirname, 'pedidos.json');
 const MESAS_PATH = path.join(__dirname, 'mesas.json');
 const CUENTAS_PATH = path.join(__dirname, 'cuentas.json');
+const PRINT_POINT_PATH = path.join(__dirname, 'print-point.json');
 const TICKET_LOGO_PATH = path.join(
   __dirname,
   'public',
@@ -21,6 +22,31 @@ const TICKET_LOGO_PATH = path.join(
 );
 var ticketLogoBase64Cache = null;
 var ultimoPrintConsumo = null;
+
+function leerUltimoPrintConsumo() {
+  try {
+    if (!fs.existsSync(PRINT_POINT_PATH)) return null;
+    var raw = fs.readFileSync(PRINT_POINT_PATH, 'utf8');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function guardarUltimoPrintConsumo(info) {
+  ultimoPrintConsumo = info || null;
+  try {
+    fs.writeFileSync(
+      PRINT_POINT_PATH,
+      JSON.stringify(ultimoPrintConsumo || {}, null, 2),
+      'utf8'
+    );
+  } catch (e) {
+    console.warn('No se pudo guardar print-point.json:', e.message || e);
+  }
+}
+
+ultimoPrintConsumo = leerUltimoPrintConsumo();
 const AUTH_COOKIE = 'matilda_staff';
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
 const AUTH_SECRET =
@@ -527,7 +553,7 @@ function enviarAccionPrintPoint(
           'Print Point error [' + subtype + '] HTTP ' + mpRes.status + ':',
           typeof raw === 'string' ? raw.slice(0, 500) : msg
         );
-        // Terminal ocupada: reintentar (incluye HTTP 409)
+        // Terminal ocupada: liberar cola y reintentar (HTTP 409)
         if (
           intento < maxIntentos &&
           (mpRes.status === 409 ||
@@ -535,19 +561,23 @@ function enviarAccionPrintPoint(
             /already_queued|busy|in.?progress|conflict|409/i.test(msg))
         ) {
           console.warn(
-            'Print ' + subtype + ' ocupado, reintento ' + (intento + 1) + '…',
+            'Print ' + subtype + ' ocupado, libero cola y reintento ' +
+              (intento + 1) +
+              '…',
             msg
           );
-          return esperarMs(2000 * intento).then(function () {
-            return enviarAccionPrintPoint(
-              terminalId,
-              token,
-              subtype,
-              content,
-              externalRef + '-r' + (intento + 1),
-              intento + 1,
-              maxIntentos
-            );
+          return liberarColaImpresionPoint(token).then(function () {
+            return esperarMs(1500 * intento).then(function () {
+              return enviarAccionPrintPoint(
+                terminalId,
+                token,
+                subtype,
+                content,
+                externalRef + '-r' + (intento + 1),
+                intento + 1,
+                maxIntentos
+              );
+            });
           });
         }
         throw new Error(msg + (mpRes.status ? ' (HTTP ' + mpRes.status + ')' : ''));
@@ -559,6 +589,72 @@ function enviarAccionPrintPoint(
       };
     });
   });
+}
+
+function cancelarAccionPrintPoint(actionId, token) {
+  if (!actionId || !token) return Promise.resolve({ ok: false });
+  return fetch(
+    'https://api.mercadopago.com/terminals/v1/actions/' +
+      encodeURIComponent(actionId) +
+      '/cancel',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'X-Idempotency-Key': nuevoIdempotencyKey(),
+      },
+    }
+  )
+    .then(function (mpRes) {
+      return mpRes.text().then(function (raw) {
+        console.log(
+          'Cancel print action',
+          actionId,
+          'HTTP',
+          mpRes.status,
+          (raw || '').slice(0, 200)
+        );
+        return { ok: mpRes.ok || mpRes.status === 404 };
+      });
+    })
+    .catch(function (err) {
+      console.warn('Cancel print action error:', err.message || err);
+      return { ok: false };
+    });
+}
+
+function liberarColaImpresionPoint(token) {
+  var prev = ultimoPrintConsumo || leerUltimoPrintConsumo() || {};
+  var ids = {};
+  if (prev.actionId) ids[String(prev.actionId)] = true;
+  if (prev.logoId) ids[String(prev.logoId)] = true;
+
+  console.log('--- Liberando cola impresión Point ---');
+  console.log('Print ids:', Object.keys(ids).join(', ') || '(ninguno)');
+
+  var cancelPrints = Promise.all(
+    Object.keys(ids).map(function (id) {
+      return cancelarAccionPrintPoint(id, token);
+    })
+  );
+
+  // Orders de cobro abiertas también bloquean la terminal (mismo 409).
+  return cancelPrints
+    .then(function () {
+      return liberarCobrosPointMesa(null, null);
+    })
+    .then(function (result) {
+      console.log(
+        'Cola liberada. Orders:',
+        JSON.stringify((result && result.canceled) || result || [])
+      );
+      return esperarMs(800);
+    })
+    .catch(function (err) {
+      console.warn('Liberar cola print:', err.message || err);
+      return esperarMs(800);
+    });
 }
 
 function consultarAccionPrintPoint(actionId, token) {
@@ -585,17 +681,21 @@ function consultarAccionPrintPoint(actionId, token) {
   });
 }
 
-// Espera a que el Point tome la impresión (on_terminal) antes de mandar la siguiente.
+// Espera a que el Point tome la impresión (on_terminal) y termine de imprimir.
+// Si mandas la siguiente en cuanto llega on_terminal → HTTP 409 (sigue ocupada).
 function esperarAccionEnTerminal(actionId, token, intento) {
   intento = Number(intento) || 0;
   if (intento >= 45) {
-    return Promise.resolve({ id: actionId, status: 'timeout' });
+    console.warn('Timeout esperando on_terminal:', actionId);
+    return cancelarAccionPrintPoint(actionId, token).then(function () {
+      return { id: actionId, status: 'timeout' };
+    });
   }
   return consultarAccionPrintPoint(actionId, token)
     .then(function (info) {
       var s = String(info.status || '').toLowerCase();
+      console.log('Poll print', actionId, 'status=', s || '(null)');
       if (
-        s === 'on_terminal' ||
         s === 'finished' ||
         s === 'processed' ||
         s === 'done' ||
@@ -603,15 +703,23 @@ function esperarAccionEnTerminal(actionId, token, intento) {
       ) {
         return info;
       }
+      if (s === 'on_terminal') {
+        // Ya está en la terminal: dar tiempo a que imprima y libere el slot.
+        console.log('Print en terminal; espero 4s a que termine…');
+        return esperarMs(4000).then(function () {
+          return info;
+        });
+      }
       if (s === 'canceled' || s === 'cancelled' || s === 'failed' || s === 'expired') {
         return info;
       }
-      return esperarMs(1500).then(function () {
+      return esperarMs(2000).then(function () {
         return esperarAccionEnTerminal(actionId, token, intento + 1);
       });
     })
-    .catch(function () {
-      return esperarMs(1500).then(function () {
+    .catch(function (err) {
+      console.warn('Poll print error:', err.message || err);
+      return esperarMs(2000).then(function () {
         return esperarAccionEnTerminal(actionId, token, intento + 1);
       });
     });
@@ -662,23 +770,25 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     console.log('------------------------------------');
 
     // El Point solo permite 1 acción en cola (HTTP 409 si mandas 2).
-    // Flujo: perrita → esperar Inicio (on_terminal) → 0.1s → consumo.
+    // Flujo: liberar cola → perrita → Ir al inicio → esperar impresión → liberar → consumo.
     function enviarConsumo(logoInfo) {
-      return enviarAccionPrintPoint(
-        terminalId,
-        token,
-        'custom',
-        content,
-        'consumo-' + mesaKey + '-' + stamp,
-        1,
-        20
-      ).then(function (data) {
+      return liberarColaImpresionPoint(token).then(function () {
+        return enviarAccionPrintPoint(
+          terminalId,
+          token,
+          'custom',
+          content,
+          'consumo-' + mesaKey + '-' + stamp,
+          1,
+          20
+        );
+      }).then(function (data) {
         console.log('--- Ticket consumo enviado ---');
         console.log('Action:', data.id || '(sin id)');
         console.log('Status:', data.status || 'created');
         console.log('Logo:', logoInfo && logoInfo.logo ? 'si' : 'no');
         console.log('------------------------------');
-        ultimoPrintConsumo = {
+        guardarUltimoPrintConsumo({
           ok: true,
           at: new Date().toISOString(),
           mesa: mesa,
@@ -688,7 +798,7 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
           logoId: logoInfo && logoInfo.logoId,
           logoError: logoInfo && logoInfo.logoError,
           error: null,
-        };
+        });
         return {
           ok: true,
           id: data.id,
@@ -698,47 +808,62 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
       });
     }
 
-    if (!logoB64) {
-      return enviarConsumo({ logo: false }).catch(function (err) {
-        console.error('Error imprimiendo consumo Point:', err.message || err);
-        ultimoPrintConsumo = {
-          ok: false,
-          at: new Date().toISOString(),
-          mesa: mesa,
-          actionId: null,
-          status: null,
-          error: err.message || String(err),
-        };
-        return { ok: false, error: err.message || String(err) };
-      });
-    }
+    return liberarColaImpresionPoint(token)
+      .then(function () {
+        if (!logoB64) {
+          return enviarConsumo({ logo: false });
+        }
 
-    return enviarAccionPrintPoint(
-      terminalId,
-      token,
-      'image',
-      logoB64,
-      'logo-' + mesaKey + '-' + stamp,
-      1,
-      15
-    )
-      .then(function (logoRes) {
-        console.log('Ticket perrita enviado:', logoRes.id || '(sin id)');
-        console.log('Esperando Ir al inicio / on_terminal…');
-        return esperarAccionEnTerminal(logoRes.id, token).then(function (st) {
-          console.log(
-            'Perrita en terminal:',
-            (st && st.status) || '(sin status)'
-          );
-          return esperarMs(100).then(function () {
+        return enviarAccionPrintPoint(
+          terminalId,
+          token,
+          'image',
+          logoB64,
+          'logo-' + mesaKey + '-' + stamp,
+          1,
+          15
+        ).then(function (logoRes) {
+          console.log('Ticket perrita enviado:', logoRes.id || '(sin id)');
+          guardarUltimoPrintConsumo({
+            ok: true,
+            at: new Date().toISOString(),
+            mesa: mesa,
+            actionId: null,
+            logoId: logoRes.id,
+            status: 'logo_queued',
+            logo: true,
+            error: null,
+          });
+          console.log('Esperando Ir al inicio / on_terminal…');
+          return esperarAccionEnTerminal(logoRes.id, token).then(function (st) {
+            console.log(
+              'Perrita en terminal:',
+              (st && st.status) || '(sin status)'
+            );
+            if (st && st.status === 'timeout') {
+              console.warn('Timeout perrita; mando solo consumo');
+              return enviarConsumo({
+                logo: false,
+                logoError: 'timeout esperando Inicio',
+              });
+            }
+            if (
+              st &&
+              /canceled|cancelled|failed|expired/i.test(String(st.status || ''))
+            ) {
+              console.warn('Perrita no impresa (' + st.status + '); mando consumo');
+              return enviarConsumo({
+                logo: false,
+                logoError: 'perrita ' + st.status,
+              });
+            }
             return enviarConsumo({ logo: true, logoId: logoRes.id });
           });
         });
       })
       .catch(function (err) {
-        // Si la perrita falla por 409 u otro, igual intentamos el consumo solo
         console.warn(
-          'Perrita no lista, intento solo consumo:',
+          'Perrita/cola falló, intento solo consumo:',
           err.message || err
         );
         return enviarConsumo({
@@ -748,14 +873,14 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
       })
       .catch(function (err) {
         console.error('Error imprimiendo consumo Point:', err.message || err);
-        ultimoPrintConsumo = {
+        guardarUltimoPrintConsumo({
           ok: false,
           at: new Date().toISOString(),
           mesa: mesa,
           actionId: null,
           status: null,
           error: err.message || String(err),
-        };
+        });
         return { ok: false, error: err.message || String(err) };
       });
   };
@@ -858,7 +983,7 @@ function finalizarCuentaMesa(mesa, metodoPago, extras) {
       };
     });
     imprimirConsumoPoint(mesa, pedidosTicket, total, {
-      delayMs: 2000,
+      delayMs: 3500,
       closedAt: ahora,
       tipAmount: tipAmount,
     }).then(function (r) {
@@ -2210,7 +2335,7 @@ app.post(
     res.json({
       ok: true,
       note:
-        'Perrita encolada. Toca Ir al inicio en el Point; luego sale el consumo solo.',
+        'Cola liberada. Toca Ir al inicio (perrita); al terminar, otra vez Ir al inicio (consumo).',
     });
 
     imprimirConsumoPoint('Mesa01', pedidosPrueba, 20, {
