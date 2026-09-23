@@ -720,8 +720,9 @@
       printPruebaBtn.textContent = 'Enviando prueba…';
       if (scanStatus) {
         scanStatus.textContent =
-          'Enviando ticket de prueba (perrita + texto) al Point…';
+          'Enviando prueba: perrita → 0.1s → consumo…';
       }
+      setInicioAvisoVisible(true);
 
       fetch('/api/cuenta/point/print-prueba', {
         method: 'POST',
@@ -737,16 +738,16 @@
         })
         .then(function (data) {
           printPruebaBtn.disabled = false;
-          printPruebaBtn.textContent = 'Ticket de prueba (perrita)';
+          printPruebaBtn.textContent = 'Ticket de prueba (perrita + consumo)';
           if (scanStatus) {
             scanStatus.textContent =
               data.note ||
-              'Prueba enviada. Si no sale, toca Inicio en el Point.';
+              'Prueba enviada. Toca Ir al inicio en el Point.';
           }
         })
         .catch(function (err) {
           printPruebaBtn.disabled = false;
-          printPruebaBtn.textContent = 'Ticket de prueba (perrita)';
+          printPruebaBtn.textContent = 'Ticket de prueba (perrita + consumo)';
           if (scanStatus) {
             scanStatus.textContent = err.message || 'No se pudo imprimir';
           }

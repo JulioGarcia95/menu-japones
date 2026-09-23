@@ -2156,59 +2156,49 @@ app.post(
         error: 'Falta token MP o POINT_TERMINAL_ID',
       });
     }
-
-    var logoB64 = leerLogoTicketBase64();
-    if (!logoB64) {
+    if (!leerLogoTicketBase64()) {
       return res.status(404).json({
         ok: false,
         error: 'No está el PNG de la perrita en public/branding/ticket-perrita.png',
       });
     }
 
-    var stamp = Date.now().toString(36);
-    var texto =
-      '{br}{center}{w}Matilda Kitchen{/w}{/center}{br}' +
-      '{center}{s}Ticket de prueba{/s}{/center}{br}{br}' +
-      '{center}Perrita + texto{/center}{br}' +
-      '{center}{s}Si ves esto, la impresion custom funciona{/s}{/center}{br}' +
-      '{br}--------------------------------{br}' +
-      '{center}{b}PRUEBA OK{/b}{/center}{br}' +
-      '--------------------------------{br}{br}{br}';
-    while (texto.length < 120) texto += '{br}';
+    // Misma función que el cobro real: perrita → 0.1s → consumo
+    var pedidosPrueba = [
+      {
+        id: 'prueba',
+        createdAt: new Date().toISOString(),
+        status: 'entregado',
+        items: [
+          { name: 'Roll California', qty: 1, price: 5 },
+          { name: 'Ramen Miso', qty: 1, price: 5 },
+          { name: 'Agua', qty: 2, price: 5 },
+        ],
+        total: 20,
+      },
+    ];
 
-    console.log('--- Ticket prueba (logo + texto) ---');
+    console.log('--- Ticket prueba (misma funcion que consumo) ---');
 
-    enviarAccionPrintPoint(
-      terminalId,
-      token,
-      'image',
-      logoB64,
-      'prueba-logo-' + stamp,
-      1,
-      3
-    )
-      .then(function (logoRes) {
-        console.log('Prueba logo OK:', logoRes.id || '');
-        return esperarMs(1500).then(function () {
-          return enviarAccionPrintPoint(
-            terminalId,
-            token,
-            'custom',
-            texto,
-            'prueba-txt-' + stamp,
-            1,
-            5
-          ).then(function (txtRes) {
-            return { logo: logoRes, texto: txtRes };
+    imprimirConsumoPoint('Mesa01', pedidosPrueba, 20, {
+      delayMs: 0,
+      closedAt: new Date().toISOString(),
+      tipAmount: 2,
+    })
+      .then(function (result) {
+        if (!result || !result.ok) {
+          return res.status(502).json({
+            ok: false,
+            error: (result && result.error) || 'No se pudo imprimir la prueba',
+            last: ultimoPrintConsumo,
           });
-        });
-      })
-      .then(function (r) {
+        }
         res.json({
           ok: true,
-          logoActionId: r.logo && r.logo.id,
-          textActionId: r.texto && r.texto.id,
-          note: 'Enviado. Si el Point está en cobro, toca Inicio para imprimir.',
+          actionId: result.id,
+          logo: result.logo,
+          note:
+            'Prueba enviada (perrita + 0.1s + consumo). Toca Ir al inicio en el Point.',
         });
       })
       .catch(function (err) {
