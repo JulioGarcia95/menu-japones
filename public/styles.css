@@ -1110,6 +1110,338 @@ body.success-open {
   min-height: 14rem;
 }
 
+/* ——— Caja kiosko (tableta) ——— */
+body.caja-kiosk {
+  padding-top: 0;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+.caja-kiosk-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(
+      ellipse 90% 55% at 50% 0%,
+      rgba(230, 57, 70, 0.2),
+      transparent 58%
+    ),
+    linear-gradient(165deg, #0a0c10 0%, #12161c 48%, #171b21 100%);
+}
+
+.caja-kiosk-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+  padding: 0.45rem 0.75rem;
+  padding-top: max(0.45rem, env(safe-area-inset-top));
+  background: rgba(10, 12, 16, 0.88);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+
+.caja-kiosk-nav-btn {
+  appearance: none;
+  text-decoration: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--mute);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.caja-kiosk-nav-btn.is-active {
+  color: var(--ink);
+  border-color: rgba(230, 57, 70, 0.45);
+  background: rgba(230, 57, 70, 0.14);
+}
+
+.caja-kiosk-nav-logout {
+  color: var(--mute);
+}
+
+.caja-kiosk-main {
+  min-height: calc(100dvh - 3rem);
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 1rem 1.5rem;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
+.caja-kiosk .caja-scan {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  max-width: 42rem;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.caja-kiosk-brand {
+  text-align: center;
+}
+
+.caja-kiosk-brand-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 5.5vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.caja-kiosk-title {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lacquer);
+}
+
+.caja-kiosk-lead {
+  margin: 0.65rem 0 0;
+  color: var(--mute);
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+
+.caja-kiosk-camera {
+  position: relative;
+  width: min(100%, 28rem);
+  aspect-ratio: 1;
+  margin: 0.25rem auto 0;
+}
+
+.caja-kiosk .caja-reader {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  background: #050607;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.caja-kiosk .caja-reader video,
+.caja-kiosk .caja-reader img,
+.caja-kiosk .caja-reader canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 1.25rem;
+}
+
+.caja-kiosk-frame {
+  pointer-events: none;
+  position: absolute;
+  inset: 12%;
+  border: 2px solid rgba(241, 238, 232, 0.55);
+  border-radius: 1rem;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.28);
+}
+
+.caja-kiosk-frame::before,
+.caja-kiosk-frame::after {
+  content: '';
+  position: absolute;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-color: var(--lacquer);
+  border-style: solid;
+}
+
+.caja-kiosk-frame::before {
+  top: -2px;
+  left: -2px;
+  border-width: 3px 0 0 3px;
+  border-radius: 6px 0 0 0;
+}
+
+.caja-kiosk-frame::after {
+  right: -2px;
+  bottom: -2px;
+  border-width: 0 3px 3px 0;
+  border-radius: 0 0 6px 0;
+}
+
+.caja-kiosk .caja-inicio-aviso {
+  max-width: 28rem;
+  width: 100%;
+  margin: 0;
+}
+
+.caja-kiosk-more {
+  width: min(100%, 28rem);
+  margin-top: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(28, 34, 42, 0.65);
+  overflow: hidden;
+}
+
+.caja-kiosk-more summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--mute);
+  text-align: center;
+  user-select: none;
+}
+
+.caja-kiosk-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.caja-kiosk-more[open] summary {
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+
+.caja-kiosk-more .caja-manual {
+  max-width: none;
+  margin: 0;
+  padding: 0.9rem 1rem 1.1rem;
+}
+
+.caja-kiosk .caja-cuenta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 36rem;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0.5rem 0 1rem;
+}
+
+.caja-kiosk-mesa {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4.5vw, 2.2rem);
+  font-weight: 700;
+  text-align: center;
+}
+
+.caja-kiosk .caja-total-big {
+  margin: 0.4rem 0 0.5rem;
+  font-size: clamp(2.8rem, 10vw, 4.2rem);
+  text-align: center;
+  line-height: 1;
+}
+
+.caja-kiosk-status {
+  margin: 0 0 0.85rem;
+  min-height: 1.3em;
+  text-align: center;
+  color: var(--mute);
+  font-size: 1rem;
+}
+
+.caja-kiosk-table {
+  max-height: 28vh;
+  overflow: auto;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.caja-kiosk .caja-propina {
+  margin-top: auto;
+}
+
+.caja-kiosk .caja-propina-ops {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.caja-kiosk .caja-propina-btn {
+  min-height: 3rem;
+  font-size: 1rem;
+  padding: 0.65rem 0.4rem;
+  border-radius: 10px;
+  touch-action: manipulation;
+}
+
+.caja-kiosk .caja-propina-otra input {
+  min-height: 2.75rem;
+  width: 7rem;
+  font-size: 1.1rem;
+}
+
+.caja-kiosk-actions {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+}
+
+.caja-kiosk-actions .btn-pagar-mp,
+.caja-kiosk-actions .mesa-reabrir {
+  min-height: 3.35rem;
+  font-size: 1.05rem;
+  border-radius: 12px;
+  touch-action: manipulation;
+}
+
+.caja-kiosk .caja-cuenta .mesa-reabrir {
+  margin-top: 0;
+}
+
+.caja-kiosk .caja-hint {
+  display: none;
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .caja-kiosk .caja-scan {
+    justify-content: flex-start;
+    gap: 0.65rem;
+  }
+
+  .caja-kiosk-brand-name {
+    font-size: 1.55rem;
+  }
+
+  .caja-kiosk-camera {
+    width: min(42vh, 22rem);
+  }
+
+  .caja-kiosk .caja-propina-ops {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 900px) and (orientation: landscape) {
+  .caja-kiosk .caja-scan {
+    max-width: 52rem;
+  }
+
+  .caja-kiosk-camera {
+    width: min(55vh, 26rem);
+  }
+
+  .caja-kiosk .caja-cuenta {
+    max-width: 40rem;
+  }
+}
+
 .caja-hint {
   text-align: center;
   color: var(--mute);

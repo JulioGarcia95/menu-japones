@@ -206,6 +206,9 @@
       pagarPointBtn.disabled = false;
       pagarPointBtn.textContent = 'Cobrar con Point Smart';
     }
+    if (scanStatus) {
+      scanStatus.textContent = 'Acerca el QR del cliente a la cámara';
+    }
     startScanner();
   }
 
@@ -396,7 +399,7 @@
     if (!readerEl || typeof Html5Qrcode === 'undefined') {
       if (scanStatus) {
         scanStatus.textContent =
-          'Cámara no disponible. Pega el enlace del QR abajo.';
+          'Cámara no disponible. Usa Más opciones para pegar el QR.';
       }
       return;
     }
@@ -404,29 +407,52 @@
 
     html5QrCode = new Html5Qrcode('caja-reader');
     scanning = true;
+
+    var config = {
+      fps: 10,
+      qrbox: function (viewW, viewH) {
+        var side = Math.floor(Math.min(viewW, viewH) * 0.62);
+        side = Math.max(180, Math.min(side, 320));
+        return { width: side, height: side };
+      },
+      aspectRatio: 1,
+    };
+
+    function arrancarConId(cameraId) {
+      return html5QrCode.start(cameraId, config, onScanSuccess, function () {});
+    }
+
+    function arrancarFrontal() {
+      return html5QrCode.start(
+        { facingMode: 'user' },
+        config,
+        onScanSuccess,
+        function () {}
+      );
+    }
+
     Html5Qrcode.getCameras()
       .then(function (cameras) {
         if (!cameras || !cameras.length) {
-          throw new Error('No hay cámara');
+          return arrancarFrontal();
         }
-        var back = cameras.find(function (c) {
-          return /back|rear|environment/i.test(c.label || '');
+        var front = cameras.find(function (c) {
+          return /front|user|facing|selfie/i.test(c.label || '');
         });
-        var id = (back || cameras[0]).id;
-        return html5QrCode.start(
-          id,
-          { fps: 8, qrbox: { width: 240, height: 240 } },
-          onScanSuccess,
-          function () {}
-        );
+        if (front) return arrancarConId(front.id);
+        return arrancarFrontal().catch(function () {
+          return arrancarConId(cameras[0].id);
+        });
       })
       .then(function () {
-        if (scanStatus) scanStatus.textContent = 'Apunta la cámara al QR del cliente…';
+        if (scanStatus) {
+          scanStatus.textContent = 'Acerca el QR del cliente a la cámara';
+        }
       })
       .catch(function () {
         if (scanStatus) {
           scanStatus.textContent =
-            'No se pudo abrir la cámara. Pega el enlace del QR abajo.';
+            'No se pudo abrir la cámara frontal. Usa Más opciones.';
         }
         html5QrCode = null;
         scanning = false;

@@ -2,7 +2,12 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>Caja — Matilda Kitchen</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -12,79 +17,86 @@
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body class="cocina-body" data-staff-area="caja">
-    <div class="page-bg" aria-hidden="true"></div>
+  <body class="caja-kiosk" data-staff-area="caja">
+    <div class="caja-kiosk-bg" aria-hidden="true"></div>
 
-    <nav class="site-nav cocina-nav" aria-label="Caja">
-      <a class="site-nav-btn" href="/cocina.html">Cocina</a>
-      <a class="site-nav-btn" href="/clientes.html">Clientes</a>
-      <a class="site-nav-btn is-active" href="/caja.html">Caja</a>
-      <a class="site-nav-btn" href="/admin.html">Admin</a>
-      <button type="button" class="site-nav-btn site-nav-logout" data-staff-logout>
+    <nav class="caja-kiosk-nav" aria-label="Caja">
+      <a class="caja-kiosk-nav-btn" href="/cocina.html">Cocina</a>
+      <a class="caja-kiosk-nav-btn" href="/clientes.html">Clientes</a>
+      <a class="caja-kiosk-nav-btn is-active" href="/caja.html">Caja</a>
+      <a class="caja-kiosk-nav-btn" href="/admin.html">Admin</a>
+      <button
+        type="button"
+        class="caja-kiosk-nav-btn caja-kiosk-nav-logout"
+        data-staff-logout
+      >
         Salir
       </button>
     </nav>
 
-    <header class="cocina-header">
-      <div>
-        <p class="cocina-kicker">Punto de cobro</p>
-        <h1>Caja</h1>
-        <p class="cocina-sub">
-          Escanea el QR del cliente o pega el enlace de la cuenta.
-        </p>
-      </div>
-    </header>
-
-    <main class="cocina-main">
+    <main class="caja-kiosk-main">
       <section class="caja-scan" id="caja-scan">
-        <div id="caja-reader" class="caja-reader"></div>
-        <p class="caja-hint" id="caja-scan-status">
-          Apunta la cámara al QR del cliente…
-        </p>
+        <header class="caja-kiosk-brand">
+          <p class="caja-kiosk-brand-name">Matilda Kitchen</p>
+          <h1 class="caja-kiosk-title">Caja</h1>
+          <p class="caja-kiosk-lead" id="caja-scan-status">
+            Acerca el QR del cliente a la cámara
+          </p>
+        </header>
+
+        <div class="caja-kiosk-camera">
+          <div id="caja-reader" class="caja-reader"></div>
+          <div class="caja-kiosk-frame" aria-hidden="true"></div>
+        </div>
+
         <div class="caja-inicio-aviso" id="caja-inicio-aviso" hidden>
           <p class="caja-inicio-aviso-titulo">Tickets en la terminal</p>
           <p class="caja-inicio-aviso-texto">
-            Da click en <strong>Ir al inicio</strong> en la terminal Point:
-            sale la perrita; cuando termine, otra vez <strong>Ir al inicio</strong>
-            para el ticket de consumo.
+            Da click en <strong>Ir al inicio</strong> en la terminal Point: sale
+            la perrita; cuando termine, otra vez
+            <strong>Ir al inicio</strong> para el ticket de consumo.
           </p>
         </div>
-        <div class="caja-manual">
-          <label>
-            Enlace o código del QR
-            <input
-              type="text"
-              id="caja-token-input"
-              placeholder="Pega el enlace de caja o el código del QR"
-            />
-          </label>
-          <button type="button" class="btn-pagar-mp" id="caja-cargar-btn">
-            Cargar cuenta
-          </button>
-          <button
-            type="button"
-            class="btn-pagar-mp btn-pagar-mp-secondary"
-            id="caja-print-prueba"
-          >
-            Ticket de prueba (perrita + consumo)
-          </button>
-          <button
-            type="button"
-            class="btn-pagar-mp btn-pagar-mp-secondary"
-            id="caja-reimprimir-consumo"
-            hidden
-          >
-            Reimprimir ticket de consumo
-          </button>
-        </div>
+
+        <details class="caja-kiosk-more">
+          <summary>Más opciones</summary>
+          <div class="caja-manual">
+            <label>
+              Enlace o código del QR
+              <input
+                type="text"
+                id="caja-token-input"
+                placeholder="Pega el enlace de caja o el código del QR"
+              />
+            </label>
+            <button type="button" class="btn-pagar-mp" id="caja-cargar-btn">
+              Cargar cuenta
+            </button>
+            <button
+              type="button"
+              class="btn-pagar-mp btn-pagar-mp-secondary"
+              id="caja-print-prueba"
+            >
+              Ticket de prueba (perrita + consumo)
+            </button>
+            <button
+              type="button"
+              class="btn-pagar-mp btn-pagar-mp-secondary"
+              id="caja-reimprimir-consumo"
+              hidden
+            >
+              Reimprimir ticket de consumo
+            </button>
+          </div>
+        </details>
       </section>
 
       <section class="caja-cuenta" id="caja-cuenta" hidden>
-        <p class="mesa-fija pagar-mesa" id="caja-mesa-label">Mesa01</p>
+        <p class="caja-kiosk-mesa" id="caja-mesa-label">Mesa01</p>
         <p class="caja-total-big" id="caja-total">$0</p>
-        <p class="cocina-status" id="caja-status"></p>
+        <p class="caja-kiosk-status" id="caja-status"></p>
 
-        <div class="historial-table-wrap">
+        <div class="historial-table-wrap caja-kiosk-table">
           <table class="historial-table">
             <thead>
               <tr>
@@ -100,7 +112,11 @@
         <div class="caja-propina" id="caja-propina">
           <p class="caja-propina-label">Propina</p>
           <div class="caja-propina-ops" role="group" aria-label="Propina">
-            <button type="button" class="caja-propina-btn is-active" data-tip="0">
+            <button
+              type="button"
+              class="caja-propina-btn is-active"
+              data-tip="0"
+            >
               Sin propina
             </button>
             <button type="button" class="caja-propina-btn" data-tip="10">
@@ -127,28 +143,30 @@
           <p class="caja-propina-resumen" id="caja-propina-resumen"></p>
         </div>
 
-        <button type="button" class="btn-pagar-mp" id="caja-pagar-point">
-          Cobrar con Point Smart
-        </button>
-        <button
-          type="button"
-          class="btn-pagar-mp btn-pagar-mp-secondary"
-          id="caja-cancelar-point"
-          hidden
-        >
-          Cancelar / Liberar Point
-        </button>
-        <button
-          type="button"
-          class="btn-pagar-mp btn-pagar-mp-secondary"
-          id="caja-imprimir-consumo"
-          hidden
-        >
-          Imprimir ticket de consumo
-        </button>
-        <button type="button" class="mesa-reabrir" id="caja-nueva">
-          Escanear otra cuenta
-        </button>
+        <div class="caja-kiosk-actions">
+          <button type="button" class="btn-pagar-mp" id="caja-pagar-point">
+            Cobrar con Point Smart
+          </button>
+          <button
+            type="button"
+            class="btn-pagar-mp btn-pagar-mp-secondary"
+            id="caja-cancelar-point"
+            hidden
+          >
+            Cancelar / Liberar Point
+          </button>
+          <button
+            type="button"
+            class="btn-pagar-mp btn-pagar-mp-secondary"
+            id="caja-imprimir-consumo"
+            hidden
+          >
+            Imprimir ticket de consumo
+          </button>
+          <button type="button" class="mesa-reabrir" id="caja-nueva">
+            Escanear otra cuenta
+          </button>
+        </div>
       </section>
     </main>
 
