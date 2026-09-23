@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Cocina — Matilda Kitchen</title>
+    <title>Editar cocina — Matilda Kitchen</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -12,14 +12,14 @@
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body class="cocina-body" data-staff-area="cocina">
+  <body class="cocina-body" data-staff-areas="cocina,caja,admin">
     <div class="page-bg" aria-hidden="true"></div>
 
-    <nav class="site-nav cocina-nav" aria-label="Cocina">
-      <a class="site-nav-btn is-active" href="/cocina.html">Cocina</a>
+    <nav class="site-nav cocina-nav" aria-label="Staff">
+      <a class="site-nav-btn" href="/cocina.html">Cocina</a>
       <a class="site-nav-btn" href="/clientes.html">Clientes</a>
       <a class="site-nav-btn" href="/caja.html">Caja</a>
-      <a class="site-nav-btn" href="/editar-cocina.html">Editar cocina</a>
+      <a class="site-nav-btn is-active" href="/editar-cocina.html">Editar cocina</a>
       <a class="site-nav-btn" href="/admin.html">Admin</a>
       <button type="button" class="site-nav-btn site-nav-logout" data-staff-logout>
         Salir
@@ -28,26 +28,21 @@
 
     <header class="cocina-header">
       <div>
-        <p class="cocina-kicker">Área de cocina</p>
-        <h1>Pedidos en vivo</h1>
-        <p class="cocina-sub">Se actualiza solo cuando llega un pedido nuevo.</p>
+        <p class="cocina-kicker">Menú del día</p>
+        <h1>Editar cocina</h1>
+        <p class="cocina-sub">
+          Activa o desactiva platillos. Los desactivados no aparecen en el menú
+          del cliente ni en el menú staff.
+        </p>
       </div>
-      <div class="cocina-live">
-        <span class="cocina-dot" aria-hidden="true"></span>
-        <span id="cocina-live-text">En vivo</span>
-        <span id="cocina-count" class="cocina-count">0 pendientes</span>
-        <button type="button" class="cocina-sound-btn" id="cocina-sound-btn">
-          Probar sonido
-        </button>
-      </div>
+      <p class="editar-menu-status" id="editar-menu-status" role="status"></p>
     </header>
 
     <main class="cocina-main">
-      <p class="cocina-status" id="cocina-status">Cargando pedidos…</p>
-      <div class="cocina-grid" id="cocina-grid"></div>
+      <div id="editar-menu-list" class="editar-menu-list"></div>
     </main>
 
     <script src="/staff-auth.js"></script>
-    <script src="/cocina.js"></script>
+    <script src="/editar-cocina.js"></script>
   </body>
 </html>

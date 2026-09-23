@@ -13,6 +13,7 @@ const PUBLIC_URL = String(process.env.PUBLIC_URL || '')
 const PEDIDOS_PATH = path.join(__dirname, 'pedidos.json');
 const MESAS_PATH = path.join(__dirname, 'mesas.json');
 const CUENTAS_PATH = path.join(__dirname, 'cuentas.json');
+const MENU_DISP_PATH = path.join(__dirname, 'menu-disponibilidad.json');
 const PRINT_POINT_PATH = path.join(__dirname, 'print-point.json');
 const TICKET_LOGO_PATH = path.join(
   __dirname,
@@ -60,10 +61,12 @@ var PINES = {
 };
 
 var PAGE_AREAS = {
-  '/cocina.html': 'cocina',
-  '/clientes.html': 'caja',
-  '/caja.html': 'caja',
-  '/admin.html': 'admin',
+  '/cocina.html': ['cocina'],
+  '/clientes.html': ['caja'],
+  '/caja.html': ['caja'],
+  '/admin.html': ['admin'],
+  '/editar-cocina.html': ['cocina', 'caja', 'admin'],
+  '/staff-menu.html': ['caja', 'admin'],
 };
 
 app.set('trust proxy', 1);
@@ -206,13 +209,19 @@ function requireAreas(areas) {
 
 // Bloquea páginas de staff antes de servir estáticos
 app.use(function (req, res, next) {
-  var area = PAGE_AREAS[req.path];
-  if (!area) return next();
-  if (authPuede(leerAuth(req), area)) return next();
-  var nextUrl = req.path + (req.url.indexOf('?') >= 0 ? req.url.slice(req.url.indexOf('?')) : '');
+  var needed = PAGE_AREAS[req.path];
+  if (!needed) return next();
+  var areas = Array.isArray(needed) ? needed : [needed];
+  var auth = leerAuth(req);
+  for (var i = 0; i < areas.length; i++) {
+    if (authPuede(auth, areas[i])) return next();
+  }
+  var nextUrl =
+    req.path +
+    (req.url.indexOf('?') >= 0 ? req.url.slice(req.url.indexOf('?')) : '');
   return res.redirect(
     '/login.html?area=' +
-      encodeURIComponent(area) +
+      encodeURIComponent(areas[0]) +
       '&next=' +
       encodeURIComponent(nextUrl)
   );
@@ -263,6 +272,50 @@ app.post('/api/auth/logout', function (req, res) {
   clearAuthCookie(req, res);
   res.json({ ok: true });
 });
+
+app.get('/api/menu', function (req, res) {
+  res.json({ ok: true, items: menuConDisponibilidad() });
+});
+
+app.patch(
+  '/api/menu/:id',
+  requireAreas(['cocina', 'caja', 'admin']),
+  function (req, res) {
+    var id = String(req.params.id || '').trim();
+    if (!MENU_BY_ID[id]) {
+      return res.status(404).json({ ok: false, error: 'Platillo no encontrado' });
+    }
+
+    var enabled = req.body && req.body.enabled;
+    if (typeof enabled !== 'boolean') {
+      return res
+        .status(400)
+        .json({ ok: false, error: 'Indica enabled: true o false' });
+    }
+
+    var disp = leerDisponibilidad();
+    var disabled = disp.disabled.slice();
+    var idx = disabled.indexOf(id);
+    if (enabled && idx !== -1) {
+      disabled.splice(idx, 1);
+    } else if (!enabled && idx === -1) {
+      disabled.push(id);
+    }
+
+    guardarDisponibilidad({ disabled: disabled });
+    var item = MENU_BY_ID[id];
+    res.json({
+      ok: true,
+      item: {
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        price: item.price,
+        enabled: enabled,
+      },
+    });
+  }
+);
 
 function urlPublica(req) {
   if (PUBLIC_URL) return PUBLIC_URL;
@@ -327,6 +380,150 @@ function leerCuentas() {
 
 function guardarCuentas(cuentas) {
   fs.writeFileSync(CUENTAS_PATH, JSON.stringify(cuentas, null, 2), 'utf8');
+}
+
+// Catálogo fijo del menú (ids únicos). La disponibilidad se guarda aparte.
+var MENU_CATALOG = [
+  { id: 'gyoza', name: 'Gyoza', category: 'Entradas', price: 5 },
+  { id: 'edamame', name: 'Edamame', category: 'Entradas', price: 5 },
+  { id: 'takoyaki', name: 'Takoyaki', category: 'Entradas', price: 5 },
+  { id: 'wakame', name: 'Ensalada wakame', category: 'Entradas', price: 5 },
+  {
+    id: 'tempura-vegetales',
+    name: 'Tempura de verduras',
+    category: 'Entradas',
+    price: 5,
+  },
+  { id: 'agedashi-tofu', name: 'Agedashi tofu', category: 'Entradas', price: 5 },
+  {
+    id: 'roll-veggie',
+    name: 'Roll vegetariano',
+    category: 'Comidas',
+    price: 5,
+  },
+  {
+    id: 'ramen-verduras',
+    name: 'Ramen de verduras',
+    category: 'Comidas',
+    price: 5,
+  },
+  {
+    id: 'curry-vegetariano',
+    name: 'Curry vegetariano',
+    category: 'Comidas',
+    price: 5,
+  },
+  { id: 'sushi', name: 'Sushi', category: 'Comidas', price: 5 },
+  { id: 'ramen', name: 'Ramen', category: 'Comidas', price: 5 },
+  { id: 'teriyaki', name: 'Pollo teriyaki', category: 'Comidas', price: 5 },
+  { id: 'agua', name: 'Agua', category: 'Bebidas', price: 5 },
+  { id: 'coca', name: 'Coca', category: 'Bebidas', price: 5 },
+  { id: 'te-verde', name: 'Té verde', category: 'Bebidas', price: 5 },
+  { id: 'sake', name: 'Saké', category: 'Bebidas', price: 5 },
+  { id: 'cerveza', name: 'Cerveza', category: 'Bebidas', price: 5 },
+  { id: 'umeshu', name: 'Umeshu', category: 'Bebidas', price: 5 },
+  { id: 'mochi', name: 'Mochi', category: 'Postres', price: 5 },
+  { id: 'helado-te', name: 'Helado de té', category: 'Postres', price: 5 },
+  { id: 'dorayaki', name: 'Dorayaki', category: 'Postres', price: 5 },
+  { id: 'taiyaki', name: 'Taiyaki', category: 'Postres', price: 5 },
+  { id: 'daifuku', name: 'Daifuku', category: 'Postres', price: 5 },
+  {
+    id: 'parfait-matcha',
+    name: 'Parfait matcha',
+    category: 'Postres',
+    price: 5,
+  },
+  { id: 'salsa-extra', name: 'Salsa extra', category: 'Extras', price: 5 },
+  {
+    id: 'huevo-ajitsuke',
+    name: 'Huevo ajitsuke',
+    category: 'Extras',
+    price: 5,
+  },
+  { id: 'arroz-extra', name: 'Arroz extra', category: 'Extras', price: 5 },
+  { id: 'miso-soup', name: 'Sopa miso', category: 'Extras', price: 5 },
+  {
+    id: 'wasabi-jengibre',
+    name: 'Wasabi y jengibre',
+    category: 'Extras',
+    price: 5,
+  },
+  { id: 'nori-extra', name: 'Nori extra', category: 'Extras', price: 5 },
+];
+
+var MENU_BY_ID = {};
+MENU_CATALOG.forEach(function (item) {
+  MENU_BY_ID[item.id] = item;
+});
+
+function leerDisponibilidad() {
+  try {
+    var raw = fs.readFileSync(MENU_DISP_PATH, 'utf8');
+    var data = JSON.parse(raw);
+    var disabled = Array.isArray(data && data.disabled) ? data.disabled : [];
+    return {
+      disabled: disabled
+        .map(function (id) {
+          return String(id || '').trim();
+        })
+        .filter(Boolean),
+    };
+  } catch (err) {
+    if (err.code === 'ENOENT') return { disabled: [] };
+    throw err;
+  }
+}
+
+function guardarDisponibilidad(data) {
+  var disabled = Array.isArray(data && data.disabled) ? data.disabled : [];
+  var limpio = [];
+  var seen = {};
+  disabled.forEach(function (id) {
+    var key = String(id || '').trim();
+    if (!key || !MENU_BY_ID[key] || seen[key]) return;
+    seen[key] = true;
+    limpio.push(key);
+  });
+  fs.writeFileSync(
+    MENU_DISP_PATH,
+    JSON.stringify({ disabled: limpio }, null, 2),
+    'utf8'
+  );
+  return { disabled: limpio };
+}
+
+function itemHabilitado(id, disp) {
+  var key = String(id || '').trim();
+  if (!key) return false;
+  var list = (disp && disp.disabled) || [];
+  return list.indexOf(key) === -1;
+}
+
+function itemsDeshabilitadosEnPedido(items) {
+  var disp = leerDisponibilidad();
+  var fuera = [];
+  var seen = {};
+  (items || []).forEach(function (item) {
+    var id = String((item && item.id) || '').trim();
+    var name = String((item && item.name) || id || 'Platillo');
+    if (!id || itemHabilitado(id, disp) || seen[id]) return;
+    seen[id] = true;
+    fuera.push(name);
+  });
+  return fuera;
+}
+
+function menuConDisponibilidad() {
+  var disp = leerDisponibilidad();
+  return MENU_CATALOG.map(function (item) {
+    return {
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      price: item.price,
+      enabled: itemHabilitado(item.id, disp),
+    };
+  });
 }
 
 var METODOS_PAGO = {
@@ -1244,6 +1441,17 @@ app.post('/api/pedidos', function (req, res) {
     return res.status(400).json({ ok: false, error: 'El pedido no tiene ítems' });
   }
 
+  var fuera = itemsDeshabilitadosEnPedido(items);
+  if (fuera.length) {
+    return res.status(400).json({
+      ok: false,
+      error:
+        'No disponible ahora: ' +
+        fuera.join(', ') +
+        '. Quítalo del carrito e intenta de nuevo.',
+    });
+  }
+
   var mesa = normalizarMesa(req.body.mesa);
   if (!mesa) {
     return res
@@ -1310,6 +1518,17 @@ app.post('/api/pedidos/staff', requireAreas(['caja', 'admin']), function (req, r
   var items = req.body && req.body.items;
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ ok: false, error: 'El pedido no tiene ítems' });
+  }
+
+  var fuera = itemsDeshabilitadosEnPedido(items);
+  if (fuera.length) {
+    return res.status(400).json({
+      ok: false,
+      error:
+        'No disponible ahora: ' +
+        fuera.join(', ') +
+        '. Quítalo del carrito e intenta de nuevo.',
+    });
   }
 
   var mesa = normalizarMesa(req.body.mesa);

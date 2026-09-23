@@ -1,12 +1,24 @@
 (function () {
-  var area = document.body.getAttribute('data-staff-area');
-  if (!area) return;
+  var areasAttr =
+    document.body.getAttribute('data-staff-areas') ||
+    document.body.getAttribute('data-staff-area');
+  if (!areasAttr) return;
+
+  var needed = String(areasAttr)
+    .split(',')
+    .map(function (s) {
+      return s.trim();
+    })
+    .filter(Boolean);
+  if (!needed.length) return;
+
+  var loginArea = needed[0];
 
   function goLogin() {
     var next = window.location.pathname + window.location.search;
     window.location.replace(
       '/login.html?area=' +
-        encodeURIComponent(area) +
+        encodeURIComponent(loginArea) +
         '&next=' +
         encodeURIComponent(next)
     );
@@ -17,7 +29,14 @@
       return res.json();
     })
     .then(function (data) {
-      if (!data || !data.ok || !data.areas || data.areas.indexOf(area) === -1) {
+      var areas = (data && data.areas) || [];
+      var ok =
+        data &&
+        data.ok &&
+        needed.some(function (a) {
+          return areas.indexOf(a) !== -1;
+        });
+      if (!ok) {
         goLogin();
         return;
       }
@@ -25,7 +44,11 @@
       var label = document.getElementById('staff-area-label');
       if (label) {
         label.textContent =
-          data.area === 'admin' ? 'Admin' : data.area === 'caja' ? 'Caja' : 'Cocina';
+          data.area === 'admin'
+            ? 'Admin'
+            : data.area === 'caja'
+              ? 'Caja'
+              : 'Cocina';
       }
     })
     .catch(function () {
@@ -44,7 +67,6 @@
     });
   });
 
-  // Si una API responde 401, manda a login
   var origFetch = window.fetch;
   window.fetch = function (input, init) {
     return origFetch.apply(this, arguments).then(function (res) {

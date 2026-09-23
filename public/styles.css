@@ -2572,63 +2572,22 @@ body.mesa-pedidos-open {
   border-color: rgba(241, 238, 232, 0.28);
 }
 
-.staff-menu-cats {
-  display: flex;
-  gap: 0.45rem;
-  overflow-x: auto;
-  padding: 0.75rem 1.1rem;
-  border-bottom: 1px solid var(--line);
-  position: sticky;
-  top: 4.6rem;
-  z-index: 19;
-  background: rgba(16, 18, 21, 0.92);
-  backdrop-filter: blur(8px);
-  scrollbar-width: none;
-}
-
-.staff-menu-cats::-webkit-scrollbar {
-  display: none;
-}
-
-.staff-cat {
-  flex: 0 0 auto;
-  appearance: none;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--mute);
-  font-family: var(--font-body);
-  font-size: 0.82rem;
-  font-weight: 500;
-  padding: 0.45rem 0.85rem;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.staff-cat.is-active {
-  color: #fff;
-  background: var(--lacquer);
-  border-color: var(--lacquer);
-}
-
 .staff-menu-main {
   max-width: 36rem;
   margin: 0 auto;
-  padding: 1rem 1.15rem 2rem;
-}
-
-.staff-panel-title {
-  margin: 0 0 0.75rem;
-  font-family: var(--font-display);
-  font-size: 1.35rem;
-  font-weight: 700;
+  padding: 0.85rem 1.15rem 2rem;
 }
 
 .staff-subhead {
-  margin: 1.1rem 0 0.45rem;
+  margin: 1.15rem 0 0.4rem;
   font-size: 0.72rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--mute);
+}
+
+.staff-menu-main > .staff-subhead:first-child {
+  margin-top: 0.35rem;
 }
 
 .staff-list {
@@ -2710,6 +2669,126 @@ body.mesa-pedidos-open {
   color: #fff;
   background: var(--lacquer-deep);
   vertical-align: middle;
+}
+
+.editar-menu-status {
+  margin: 0;
+  min-height: 1.4em;
+  color: var(--mute);
+  font-size: 0.9rem;
+  text-align: right;
+}
+
+.editar-menu-list {
+  display: grid;
+  gap: 1.35rem;
+  max-width: 40rem;
+}
+
+.editar-menu-cat {
+  margin: 0 0 0.55rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.editar-menu-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.editar-menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.editar-menu-row:first-child {
+  border-top: 0;
+}
+
+.editar-menu-row.is-off {
+  opacity: 0.55;
+}
+
+.editar-menu-name {
+  margin: 0;
+  font-weight: 500;
+}
+
+.editar-menu-meta {
+  margin: 0.15rem 0 0;
+  color: var(--mute);
+  font-size: 0.85rem;
+}
+
+.editar-menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.editar-menu-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.editar-menu-toggle-ui {
+  width: 2.6rem;
+  height: 1.45rem;
+  border-radius: 999px;
+  background: rgba(241, 238, 232, 0.18);
+  border: 1px solid var(--line);
+  position: relative;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.editar-menu-toggle-ui::after {
+  content: "";
+  position: absolute;
+  top: 0.12rem;
+  left: 0.12rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+
+.editar-menu-toggle input:checked + .editar-menu-toggle-ui {
+  background: var(--lacquer);
+  border-color: var(--lacquer);
+}
+
+.editar-menu-toggle input:checked + .editar-menu-toggle-ui::after {
+  transform: translateX(1.15rem);
+}
+
+.editar-menu-toggle-label {
+  min-width: 3.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--mute);
+}
+
+.editar-menu-toggle input:checked ~ .editar-menu-toggle-label {
+  color: #7dffb0;
+}
+
+.editar-menu-empty {
+  color: var(--mute);
 }
 
 @media (min-width: 720px) {

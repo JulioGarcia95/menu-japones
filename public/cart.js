@@ -847,5 +847,10 @@
     checkMesaState(null);
   }, 5000);
 
+  document.addEventListener('menu-disponibilidad', function () {
+    cart = loadCart();
+    render();
+  });
+
   render();
 })();
