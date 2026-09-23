@@ -675,9 +675,8 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
               'Perrita en terminal:',
               (st && st.status) || '(sin status)'
             );
-            return esperarMs(1000).then(function () {
-              return { logo: true, logoId: logoRes.id };
-            });
+            // Sin pausa fija: en cuanto el Point toma el primer ticket, va el consumo.
+            return { logo: true, logoId: logoRes.id };
           });
         })
         .catch(function (logoErr) {
