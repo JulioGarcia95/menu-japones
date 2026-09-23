@@ -97,7 +97,11 @@
 
   if (!cartToggle || !cartSheet) return;
 
-  if (staffMode && !document.querySelector('.staff-banner')) {
+  if (
+    staffMode &&
+    !document.body.classList.contains('staff-menu-page') &&
+    !document.querySelector('.staff-banner')
+  ) {
     var banner = document.createElement('p');
     banner.className = 'staff-banner';
     banner.textContent =
@@ -429,7 +433,9 @@
   function showSuccess(mesa) {
     if (!orderSuccess) return;
     if (orderSuccessMesa) {
-      orderSuccessMesa.textContent = mesa ? 'Mesa: ' + mesa : '';
+      var label = mesa || '';
+      if (staffMode && label) label = label + '(staff)';
+      orderSuccessMesa.textContent = label ? 'Mesa: ' + label : '';
     }
     orderSuccess.hidden = false;
     document.body.classList.add('success-open');

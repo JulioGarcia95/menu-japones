@@ -155,11 +155,15 @@
               })
               .join(', ');
             var canCancel = status === 'pendiente' || status === 'en_proceso';
+            var porStaff = p.createdBy === 'staff';
             return (
               '<li class="mesa-pedido-item">' +
               '<div class="mesa-pedido-copy">' +
               '<p class="mesa-pedido-meta">' +
               escapeHtml(formatTime(p.createdAt)) +
+              (porStaff
+                ? ' · <span class="staff-tag">staff</span>'
+                : '') +
               ' · <span class="estado-badge estado-' +
               escapeHtml(status) +
               '">' +
@@ -289,7 +293,9 @@
       .map(function (mesa) {
         var puedeReabrir = mesa.estado === 'cuenta_solicitada';
         var menuStaff =
-          '/?mesa=' + encodeURIComponent(mesa.mesa) + '&staff=1';
+          '/staff-menu.html?mesa=' +
+          encodeURIComponent(mesa.mesa) +
+          '&staff=1';
         return (
           '<article class="mesa-card estado-' +
           escapeHtml(mesa.estado) +

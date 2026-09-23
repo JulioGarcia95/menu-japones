@@ -74,7 +74,10 @@
   var staffMode = false;
   try {
     var paramsStaff = new URLSearchParams(window.location.search);
-    staffMode = paramsStaff.get('staff') === '1';
+    var path = String(window.location.pathname || '');
+    staffMode =
+      paramsStaff.get('staff') === '1' ||
+      /staff-menu\.html$/i.test(path);
   } catch (e) {}
 
   // Escaneó el QR de la mesa: nueva visita → limpia sesión vieja

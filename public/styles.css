@@ -2515,6 +2515,214 @@ body.mesa-pedidos-open {
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.staff-menu-page {
+  padding-top: 0;
+  padding-bottom: 5.5rem;
+}
+
+.staff-menu-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  background: rgba(16, 18, 21, 0.88);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.staff-menu-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.staff-menu-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 4vw, 1.65rem);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.staff-menu-title span {
+  color: var(--lacquer);
+}
+
+.staff-menu-back {
+  flex-shrink: 0;
+  color: var(--mute);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: var(--surface);
+}
+
+.staff-menu-back:hover {
+  color: var(--ink);
+  border-color: rgba(241, 238, 232, 0.28);
+}
+
+.staff-menu-cats {
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding: 0.75rem 1.1rem;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 4.6rem;
+  z-index: 19;
+  background: rgba(16, 18, 21, 0.92);
+  backdrop-filter: blur(8px);
+  scrollbar-width: none;
+}
+
+.staff-menu-cats::-webkit-scrollbar {
+  display: none;
+}
+
+.staff-cat {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--mute);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.staff-cat.is-active {
+  color: #fff;
+  background: var(--lacquer);
+  border-color: var(--lacquer);
+}
+
+.staff-menu-main {
+  max-width: 36rem;
+  margin: 0 auto;
+  padding: 1rem 1.15rem 2rem;
+}
+
+.staff-panel-title {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.staff-subhead {
+  margin: 1.1rem 0 0.45rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.staff-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.staff-list + .staff-subhead {
+  margin-top: 1.25rem;
+}
+
+.staff-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.staff-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.staff-row:hover,
+.staff-row:focus-visible {
+  background: rgba(230, 57, 70, 0.1);
+  outline: none;
+}
+
+.staff-row:active {
+  background: rgba(230, 57, 70, 0.18);
+}
+
+.staff-row-name {
+  font-weight: 500;
+}
+
+.staff-row-price {
+  color: var(--mute);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+}
+
+.staff-row-add {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  background: var(--lacquer);
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.staff-tag {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--lacquer-deep);
+  vertical-align: middle;
+}
+
+@media (min-width: 720px) {
+  .staff-menu-main {
+    max-width: 42rem;
+  }
+
+  .staff-row {
+    padding: 0.95rem 1.15rem;
+    font-size: 1.05rem;
+  }
+}
+
 .pago-modal {
   position: fixed;
   inset: 0;

@@ -50,6 +50,12 @@
     return 'Recibido';
   }
 
+  function etiquetaMesa(pedido) {
+    var mesa = pedido.mesa || 'Sin mesa';
+    if (pedido.createdBy === 'staff') return mesa + '(staff)';
+    return mesa;
+  }
+
   function actualizarAvisoPrep(pedidos) {
     if (!historialPrep) return;
     var activos = (pedidos || []).filter(function (p) {
@@ -159,7 +165,7 @@
             (index + 1) +
             '</td>' +
             '<td>' +
-            escapeHtml(pedido.mesa || 'Sin mesa') +
+            escapeHtml(etiquetaMesa(pedido)) +
             '</td>' +
             '<td>' +
             escapeHtml(formatTime(pedido.createdAt)) +

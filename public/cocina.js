@@ -41,6 +41,12 @@
     return 'Pendiente';
   }
 
+  function etiquetaMesa(pedido) {
+    var mesa = pedido.mesa || 'Sin mesa';
+    if (pedido.createdBy === 'staff') return mesa + '(staff)';
+    return mesa;
+  }
+
   function getAudioCtx() {
     var AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return null;
@@ -172,7 +178,7 @@
           '">' +
           '<header class="cocina-card-head">' +
           '<p class="cocina-mesa">' +
-          escapeHtml(pedido.mesa || 'Sin mesa') +
+          escapeHtml(etiquetaMesa(pedido)) +
           '</p>' +
           '<span class="estado-badge estado-' +
           status +
