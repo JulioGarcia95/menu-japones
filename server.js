@@ -13,6 +13,13 @@ const PUBLIC_URL = String(process.env.PUBLIC_URL || '')
 const PEDIDOS_PATH = path.join(__dirname, 'pedidos.json');
 const MESAS_PATH = path.join(__dirname, 'mesas.json');
 const CUENTAS_PATH = path.join(__dirname, 'cuentas.json');
+const TICKET_LOGO_PATH = path.join(
+  __dirname,
+  'public',
+  'branding',
+  'ticket-perrita.png'
+);
+var ticketLogoBase64Cache = null;
 var ultimoPrintConsumo = null;
 const AUTH_COOKIE = 'matilda_staff';
 const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
@@ -439,6 +446,18 @@ function armarContenidoTicketConsumo(mesa, pedidos, total, closedAt, tipAmount) 
     content = content.slice(0, 4090) + '{br}';
   }
   return content;
+}
+
+function leerLogoTicketBase64() {
+  if (ticketLogoBase64Cache) return ticketLogoBase64Cache;
+  try {
+    if (!fs.existsSync(TICKET_LOGO_PATH)) return null;
+    ticketLogoBase64Cache = fs.readFileSync(TICKET_LOGO_PATH).toString('base64');
+    return ticketLogoBase64Cache;
+  } catch (err) {
+    console.error('No se pudo leer logo del ticket:', err.message || err);
+    return null;
+  }
 }
 
 function sanitizarExternalRefPrint(ref) {
@@ -2022,9 +2041,87 @@ app.get(
     res.json({
       ok: true,
       last: ultimoPrintConsumo,
+      logoReady: Boolean(leerLogoTicketBase64()),
       terminalConfigured: Boolean(pointTerminalId()),
       tokenConfigured: Boolean(mpAccessToken()),
     });
+  }
+);
+
+app.post(
+  '/api/cuenta/point/print-prueba',
+  requireAreas(['caja', 'admin']),
+  function (req, res) {
+    var token = mpAccessToken();
+    var terminalId = pointTerminalId();
+    if (!token || !terminalId) {
+      return res.status(503).json({
+        ok: false,
+        error: 'Falta token MP o POINT_TERMINAL_ID',
+      });
+    }
+
+    var logoB64 = leerLogoTicketBase64();
+    if (!logoB64) {
+      return res.status(404).json({
+        ok: false,
+        error: 'No está el PNG de la perrita en public/branding/ticket-perrita.png',
+      });
+    }
+
+    var stamp = Date.now().toString(36);
+    var texto =
+      '{br}{center}{w}Matilda Kitchen{/w}{/center}{br}' +
+      '{center}{s}Ticket de prueba{/s}{/center}{br}{br}' +
+      '{center}Perrita + texto{/center}{br}' +
+      '{center}{s}Si ves esto, la impresion custom funciona{/s}{/center}{br}' +
+      '{br}--------------------------------{br}' +
+      '{center}{b}PRUEBA OK{/b}{/center}{br}' +
+      '--------------------------------{br}{br}{br}';
+    while (texto.length < 120) texto += '{br}';
+
+    console.log('--- Ticket prueba (logo + texto) ---');
+
+    enviarAccionPrintPoint(
+      terminalId,
+      token,
+      'image',
+      logoB64,
+      'prueba-logo-' + stamp,
+      1,
+      3
+    )
+      .then(function (logoRes) {
+        console.log('Prueba logo OK:', logoRes.id || '');
+        return esperarMs(1500).then(function () {
+          return enviarAccionPrintPoint(
+            terminalId,
+            token,
+            'custom',
+            texto,
+            'prueba-txt-' + stamp,
+            1,
+            5
+          ).then(function (txtRes) {
+            return { logo: logoRes, texto: txtRes };
+          });
+        });
+      })
+      .then(function (r) {
+        res.json({
+          ok: true,
+          logoActionId: r.logo && r.logo.id,
+          textActionId: r.texto && r.texto.id,
+          note: 'Enviado. Si el Point está en cobro, toca Inicio para imprimir.',
+        });
+      })
+      .catch(function (err) {
+        console.error('Print prueba falló:', err.message || err);
+        res.status(502).json({
+          ok: false,
+          error: err.message || 'No se pudo imprimir la prueba',
+        });
+      });
   }
 );
 

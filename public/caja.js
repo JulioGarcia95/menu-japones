@@ -12,6 +12,7 @@
   var cancelarPointBtn = document.getElementById('caja-cancelar-point');
   var imprimirConsumoBtn = document.getElementById('caja-imprimir-consumo');
   var reimprimirConsumoBtn = document.getElementById('caja-reimprimir-consumo');
+  var printPruebaBtn = document.getElementById('caja-print-prueba');
   var nuevaBtn = document.getElementById('caja-nueva');
   var readerEl = document.getElementById('caja-reader');
   var toastEl = document.getElementById('caja-toast');
@@ -701,6 +702,47 @@
             scanStatus.textContent = err.message || 'No se pudo imprimir';
           }
           alert(err.message || 'No se pudo imprimir el ticket de consumo');
+        });
+    });
+  }
+
+  if (printPruebaBtn) {
+    printPruebaBtn.addEventListener('click', function () {
+      printPruebaBtn.disabled = true;
+      printPruebaBtn.textContent = 'Enviando prueba…';
+      if (scanStatus) {
+        scanStatus.textContent =
+          'Enviando ticket de prueba (perrita + texto) al Point…';
+      }
+
+      fetch('/api/cuenta/point/print-prueba', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            if (!res.ok || !data.ok) throw new Error(data.error || 'Error');
+            return data;
+          });
+        })
+        .then(function (data) {
+          printPruebaBtn.disabled = false;
+          printPruebaBtn.textContent = 'Ticket de prueba (perrita)';
+          if (scanStatus) {
+            scanStatus.textContent =
+              data.note ||
+              'Prueba enviada. Si no sale, toca Inicio en el Point.';
+          }
+        })
+        .catch(function (err) {
+          printPruebaBtn.disabled = false;
+          printPruebaBtn.textContent = 'Ticket de prueba (perrita)';
+          if (scanStatus) {
+            scanStatus.textContent = err.message || 'No se pudo imprimir';
+          }
+          alert(err.message || 'No se pudo imprimir el ticket de prueba');
         });
     });
   }
