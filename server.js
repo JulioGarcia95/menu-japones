@@ -739,6 +739,7 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
   if (!Number.isFinite(delayMs) || delayMs < 0) delayMs = 0;
   var closedAt = opts.closedAt || null;
   var tipAmount = Math.max(0, Number(opts.tipAmount) || 0);
+  var sinLogo = Boolean(opts.sinLogo);
 
   var run = function () {
     var token = mpAccessToken();
@@ -760,7 +761,7 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     );
     var stamp = Date.now().toString(36);
     var mesaKey = String(mesa || '').replace(/\s+/g, '');
-    var logoB64 = leerLogoTicketBase64();
+    var logoB64 = sinLogo ? null : leerLogoTicketBase64();
 
     console.log('--- Enviando ticket consumo Point ---');
     console.log('Mesa:', mesa);
@@ -2307,14 +2308,7 @@ app.post(
         error: 'Falta token MP o POINT_TERMINAL_ID',
       });
     }
-    if (!leerLogoTicketBase64()) {
-      return res.status(404).json({
-        ok: false,
-        error: 'No está el PNG de la perrita en public/branding/ticket-perrita.png',
-      });
-    }
 
-    // Misma función que el cobro real: perrita → 0.1s → consumo
     var pedidosPrueba = [
       {
         id: 'prueba',
@@ -2329,26 +2323,35 @@ app.post(
       },
     ];
 
-    console.log('--- Ticket prueba (misma funcion que consumo) ---');
-
-    // Responder al toque y seguir en background (espera Inicio puede tardar)
-    res.json({
-      ok: true,
-      note:
-        'Cola liberada. Toca Ir al inicio (perrita); al terminar, otra vez Ir al inicio (consumo).',
-    });
+    console.log('--- Ticket prueba (solo consumo) ---');
 
     imprimirConsumoPoint('Mesa01', pedidosPrueba, 20, {
       delayMs: 0,
       closedAt: new Date().toISOString(),
       tipAmount: 2,
-    }).then(function (result) {
-      if (result && result.ok) {
-        console.log('Prueba OK:', result.id || '', 'logo:', result.logo);
-      } else {
-        console.error('Prueba falló:', (result && result.error) || 'sin detalle');
-      }
-    });
+      sinLogo: true,
+    })
+      .then(function (result) {
+        if (!result || !result.ok) {
+          return res.status(502).json({
+            ok: false,
+            error: (result && result.error) || 'No se pudo imprimir',
+            last: ultimoPrintConsumo,
+          });
+        }
+        res.json({
+          ok: true,
+          actionId: result.id,
+          status: result.status,
+          note: 'Ticket de prueba enviado. Toca Ir al inicio en el Point para verlo.',
+        });
+      })
+      .catch(function (err) {
+        res.status(502).json({
+          ok: false,
+          error: err.message || 'Error al imprimir prueba',
+        });
+      });
   }
 );
 

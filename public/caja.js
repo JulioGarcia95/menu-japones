@@ -717,10 +717,9 @@
   if (printPruebaBtn) {
     printPruebaBtn.addEventListener('click', function () {
       printPruebaBtn.disabled = true;
-      printPruebaBtn.textContent = 'Enviando prueba…';
+      printPruebaBtn.textContent = 'Imprimiendo…';
       if (scanStatus) {
-        scanStatus.textContent =
-          'Enviando… Toca Ir al inicio (perrita); al terminar, otra vez Ir al inicio (consumo).';
+        scanStatus.textContent = 'Enviando ticket de prueba al Point…';
       }
       setInicioAvisoVisible(true);
 
@@ -738,16 +737,16 @@
         })
         .then(function (data) {
           printPruebaBtn.disabled = false;
-          printPruebaBtn.textContent = 'Ticket de prueba (perrita + consumo)';
+          printPruebaBtn.textContent = 'Imprimir ticket de prueba';
           if (scanStatus) {
             scanStatus.textContent =
               data.note ||
-              'Perrita encolada. Toca Ir al inicio en el Point.';
+              'Ticket enviado. Toca Ir al inicio en el Point.';
           }
         })
         .catch(function (err) {
           printPruebaBtn.disabled = false;
-          printPruebaBtn.textContent = 'Ticket de prueba (perrita + consumo)';
+          printPruebaBtn.textContent = 'Imprimir ticket de prueba';
           if (scanStatus) {
             scanStatus.textContent = err.message || 'No se pudo imprimir';
           }
