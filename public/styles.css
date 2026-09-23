@@ -2355,6 +2355,46 @@ body.pago-modal-open {
   font-size: 0.95rem;
 }
 
+.subcat-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
+}
+
+.subcat-btn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--mute);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.subcat-btn:hover,
+.subcat-btn:focus-visible {
+  border-color: rgba(230, 57, 70, 0.45);
+  color: var(--ink);
+  outline: none;
+}
+
+.subcat-btn.is-active {
+  background: rgba(230, 57, 70, 0.16);
+  border-color: var(--lacquer);
+  color: var(--ink);
+}
+
+.menu-item.is-sub-hidden,
+.menu-item[hidden] {
+  display: none !important;
+}
+
 .menu-scroll {
   position: relative;
   display: grid;

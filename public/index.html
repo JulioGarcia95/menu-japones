@@ -135,24 +135,49 @@
             <h2>Comidas</h2>
             <p>Platos fuertes de la casa. Toca la imagen para agregar.</p>
           </div>
+          <div class="subcat-bar" role="tablist" aria-label="Tipo de comida">
+            <button type="button" class="subcat-btn is-active" data-sub="todos" aria-selected="true">
+              Todas
+            </button>
+            <button type="button" class="subcat-btn" data-sub="vegetariana" aria-selected="false">
+              Vegetarianas
+            </button>
+            <button type="button" class="subcat-btn" data-sub="proteina" aria-selected="false">
+              Con proteína
+            </button>
+          </div>
           <div class="menu-scroll">
           <button type="button" class="menu-arrow menu-arrow-left" aria-label="Platillos anteriores">‹</button>
           <ul class="menu-list">
-            <li class="menu-item">
+            <li class="menu-item" data-sub="vegetariana">
+              <button type="button" class="btn-add menu-dish" data-id="roll-veggie" data-name="Roll vegetariano" data-price="5" aria-label="Agregar Roll vegetariano, 5 pesos">
+                <span class="dish-name">Roll vegetariano</span>
+                <img class="item-photo" src="/images/menu/sushi.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$5</span>
+              </button>
+            </li>
+            <li class="menu-item" data-sub="vegetariana">
+              <button type="button" class="btn-add menu-dish" data-id="ramen-verduras" data-name="Ramen de verduras" data-price="5" aria-label="Agregar Ramen de verduras, 5 pesos">
+                <span class="dish-name">Ramen de verduras</span>
+                <img class="item-photo" src="/images/menu/ramen.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$5</span>
+              </button>
+            </li>
+            <li class="menu-item" data-sub="proteina">
               <button type="button" class="btn-add menu-dish" data-id="sushi" data-name="Sushi" data-price="5" aria-label="Agregar Sushi, 5 pesos">
                 <span class="dish-name">Sushi</span>
                 <img class="item-photo" src="/images/menu/sushi.png" alt="" width="220" height="220" loading="lazy" />
                 <span class="dish-price">$5</span>
               </button>
             </li>
-            <li class="menu-item">
+            <li class="menu-item" data-sub="proteina">
               <button type="button" class="btn-add menu-dish" data-id="ramen" data-name="Ramen" data-price="5" aria-label="Agregar Ramen, 5 pesos">
                 <span class="dish-name">Ramen</span>
                 <img class="item-photo" src="/images/menu/ramen.png" alt="" width="220" height="220" loading="lazy" />
                 <span class="dish-price">$5</span>
               </button>
             </li>
-            <li class="menu-item">
+            <li class="menu-item" data-sub="proteina">
               <button type="button" class="btn-add menu-dish" data-id="teriyaki" data-name="Pollo teriyaki" data-price="5" aria-label="Agregar Pollo teriyaki, 5 pesos">
                 <span class="dish-name">Pollo teriyaki</span>
                 <img class="item-photo" src="/images/menu/teriyaki.png" alt="" width="220" height="220" loading="lazy" />
@@ -169,27 +194,52 @@
             <h2>Bebidas</h2>
             <p>Para acompañar. Toca la imagen para agregar.</p>
           </div>
+          <div class="subcat-bar" role="tablist" aria-label="Tipo de bebida">
+            <button type="button" class="subcat-btn is-active" data-sub="todos" aria-selected="true">
+              Todas
+            </button>
+            <button type="button" class="subcat-btn" data-sub="sin-alcohol" aria-selected="false">
+              Sin alcohol
+            </button>
+            <button type="button" class="subcat-btn" data-sub="con-alcohol" aria-selected="false">
+              Con alcohol
+            </button>
+          </div>
           <div class="menu-scroll">
           <button type="button" class="menu-arrow menu-arrow-left" aria-label="Platillos anteriores">‹</button>
           <ul class="menu-list">
-            <li class="menu-item">
+            <li class="menu-item" data-sub="sin-alcohol">
               <button type="button" class="btn-add menu-dish" data-id="agua" data-name="Agua" data-price="5" aria-label="Agregar Agua, 5 pesos">
                 <span class="dish-name">Agua</span>
                 <img class="item-photo" src="/images/menu/agua.png" alt="" width="220" height="220" loading="lazy" />
                 <span class="dish-price">$5</span>
               </button>
             </li>
-            <li class="menu-item">
+            <li class="menu-item" data-sub="sin-alcohol">
               <button type="button" class="btn-add menu-dish" data-id="coca" data-name="Coca" data-price="5" aria-label="Agregar Coca, 5 pesos">
                 <span class="dish-name">Coca</span>
                 <img class="item-photo" src="/images/menu/coca.png" alt="" width="220" height="220" loading="lazy" />
                 <span class="dish-price">$5</span>
               </button>
             </li>
-            <li class="menu-item">
+            <li class="menu-item" data-sub="sin-alcohol">
               <button type="button" class="btn-add menu-dish" data-id="te-verde" data-name="Té verde" data-price="5" aria-label="Agregar Té verde, 5 pesos">
                 <span class="dish-name">Té verde</span>
                 <img class="item-photo" src="/images/menu/te-verde.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$5</span>
+              </button>
+            </li>
+            <li class="menu-item" data-sub="con-alcohol">
+              <button type="button" class="btn-add menu-dish" data-id="sake" data-name="Saké" data-price="5" aria-label="Agregar Saké, 5 pesos">
+                <span class="dish-name">Saké</span>
+                <img class="item-photo" src="/images/menu/te-verde.png" alt="" width="220" height="220" loading="lazy" />
+                <span class="dish-price">$5</span>
+              </button>
+            </li>
+            <li class="menu-item" data-sub="con-alcohol">
+              <button type="button" class="btn-add menu-dish" data-id="cerveza" data-name="Cerveza" data-price="5" aria-label="Agregar Cerveza, 5 pesos">
+                <span class="dish-name">Cerveza</span>
+                <img class="item-photo" src="/images/menu/coca.png" alt="" width="220" height="220" loading="lazy" />
                 <span class="dish-price">$5</span>
               </button>
             </li>
