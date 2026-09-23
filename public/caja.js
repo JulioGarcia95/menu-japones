@@ -17,6 +17,7 @@
   var readerEl = document.getElementById('caja-reader');
   var toastEl = document.getElementById('caja-toast');
   var toastText = document.getElementById('caja-toast-text');
+  var inicioAvisoEl = document.getElementById('caja-inicio-aviso');
   var propinaBtns = document.querySelectorAll('.caja-propina-btn');
   var propinaMontoInput = document.getElementById('caja-propina-monto');
   var propinaResumen = document.getElementById('caja-propina-resumen');
@@ -129,6 +130,7 @@
     orderIdActual = null;
     setCancelVisible(false);
     setImprimirVisible(false);
+    setInicioAvisoVisible(false);
     scanSection.hidden = true;
     cuentaSection.hidden = false;
     stopScanner();
@@ -182,6 +184,11 @@
     if (visible) {
       reimprimirConsumoBtn.textContent = 'Reimprimir ticket de consumo';
     }
+  }
+
+  function setInicioAvisoVisible(visible) {
+    if (!inicioAvisoEl) return;
+    inicioAvisoEl.hidden = !visible;
   }
 
   function showScan() {
@@ -284,10 +291,13 @@
         (paidNum > 0 ? ' · Total ' + formatMoney(paidNum) : '') +
         ' · Pago aprobado';
     }
+    toastMsg +=
+      ' · Da click en Ir al inicio en la terminal para su ticket de compra';
     showToast(toastMsg);
 
     // MP sale solo; consumo al tocar Inicio en el Point.
     showScan();
+    setInicioAvisoVisible(true);
     if (scanStatus) {
       scanStatus.textContent =
         tipNum > 0
@@ -295,10 +305,8 @@
             mesaTxt +
             ' listo (propina ' +
             formatMoney(tipNum) +
-            '). Ticket MP listo. En el Point: Inicio → consumo; luego sale la perrita (o otro Inicio).'
-          : 'Cobro de ' +
-            mesaTxt +
-            ' listo. Ticket MP listo. En el Point: Inicio → consumo; luego sale la perrita (o otro Inicio).';
+            ').'
+          : 'Cobro de ' + mesaTxt + ' listo.';
     }
   }
 
