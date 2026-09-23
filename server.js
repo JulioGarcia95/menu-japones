@@ -505,10 +505,15 @@ function enviarAccionPrintPoint(
   content,
   externalRef,
   intento,
-  maxIntentos
+  maxIntentos,
+  opts
 ) {
   intento = Number(intento) || 1;
   maxIntentos = Number(maxIntentos) || 4;
+  opts = opts || {};
+  // Si true: en 409 solo espera (no cancela la impresión anterior, ej. la perrita).
+  var esperarSinCancelar = Boolean(opts.esperarSinCancelar);
+
   return fetch('https://api.mercadopago.com/terminals/v1/actions', {
     method: 'POST',
     headers: {
@@ -553,21 +558,26 @@ function enviarAccionPrintPoint(
           'Print Point error [' + subtype + '] HTTP ' + mpRes.status + ':',
           typeof raw === 'string' ? raw.slice(0, 500) : msg
         );
-        // Terminal ocupada: liberar cola y reintentar (HTTP 409)
+        // Terminal ocupada: reintentar (HTTP 409)
         if (
           intento < maxIntentos &&
           (mpRes.status === 409 ||
             mpRes.status === 429 ||
             /already_queued|busy|in.?progress|conflict|409/i.test(msg))
         ) {
+          var waitMs = esperarSinCancelar ? 3000 * intento : 1500 * intento;
           console.warn(
-            'Print ' + subtype + ' ocupado, libero cola y reintento ' +
+            'Print ' +
+              subtype +
+              ' ocupado, ' +
+              (esperarSinCancelar ? 'espero sin cancelar' : 'libero cola') +
+              ' y reintento ' +
               (intento + 1) +
               '…',
             msg
           );
-          return liberarColaImpresionPoint(token).then(function () {
-            return esperarMs(1500 * intento).then(function () {
+          var next = function () {
+            return esperarMs(waitMs).then(function () {
               return enviarAccionPrintPoint(
                 terminalId,
                 token,
@@ -575,10 +585,13 @@ function enviarAccionPrintPoint(
                 content,
                 externalRef + '-r' + (intento + 1),
                 intento + 1,
-                maxIntentos
+                maxIntentos,
+                opts
               );
             });
-          });
+          };
+          if (esperarSinCancelar) return next();
+          return liberarColaImpresionPoint(token).then(next);
         }
         throw new Error(msg + (mpRes.status ? ' (HTTP ' + mpRes.status + ')' : ''));
       }
@@ -740,10 +753,6 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
   var closedAt = opts.closedAt || null;
   var tipAmount = Math.max(0, Number(opts.tipAmount) || 0);
   var sinLogo = Boolean(opts.sinLogo);
-  // Si viene pausaEntreMs (ej. 100), perrita → pausa → consumo sin esperar cobro ni Inicio.
-  var pausaEntreMs = Number(opts.pausaEntreMs);
-  var modoRapido =
-    Number.isFinite(pausaEntreMs) && pausaEntreMs >= 0 && !sinLogo;
 
   var run = function () {
     var token = mpAccessToken();
@@ -771,28 +780,23 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     console.log('Mesa:', mesa);
     console.log('Terminal:', terminalId);
     console.log('Logo:', logoB64 ? 'si' : 'no');
-    console.log('Modo:', modoRapido ? 'prueba ' + pausaEntreMs + 'ms' : 'normal');
     console.log('Chars:', content.length);
     console.log('------------------------------------');
 
-    function enviarConsumo(logoInfo, sinLiberar) {
-      var send = function () {
-        return enviarAccionPrintPoint(
-          terminalId,
-          token,
-          'custom',
-          content,
-          'consumo-' + mesaKey + '-' + stamp,
-          1,
-          20
-        );
-      };
-      // En modo rápido NO liberar: cancelaría la perrita recién encolada.
-      var chain = sinLiberar
-        ? send()
-        : liberarColaImpresionPoint(token).then(send);
-
-      return chain.then(function (data) {
+    // El Point solo permite 1 impresión en cola. Si mandas consumo a los 0.1s
+    // mientras la perrita sigue queued → 409 y el reintento la cancela.
+    function enviarConsumo(logoInfo, despuesDePerrita) {
+      var sendOpts = despuesDePerrita ? { esperarSinCancelar: true } : {};
+      return enviarAccionPrintPoint(
+        terminalId,
+        token,
+        'custom',
+        content,
+        'consumo-' + mesaKey + '-' + stamp,
+        1,
+        despuesDePerrita ? 25 : 20,
+        sendOpts
+      ).then(function (data) {
         console.log('--- Ticket consumo enviado ---');
         console.log('Action:', data.id || '(sin id)');
         console.log('Status:', data.status || 'created');
@@ -821,7 +825,7 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     return liberarColaImpresionPoint(token)
       .then(function () {
         if (!logoB64) {
-          return enviarConsumo({ logo: false }, true);
+          return enviarConsumo({ logo: false }, false);
         }
 
         return enviarAccionPrintPoint(
@@ -844,16 +848,9 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
             logo: true,
             error: null,
           });
-
-          // Botón de prueba: perrita → 0.1s → consumo (sin esperar cobro).
-          if (modoRapido) {
-            console.log('Prueba: espero ' + pausaEntreMs + 'ms y mando consumo…');
-            return esperarMs(pausaEntreMs).then(function () {
-              return enviarConsumo({ logo: true, logoId: logoRes.id }, true);
-            });
-          }
-
-          console.log('Esperando Ir al inicio / on_terminal…');
+          console.log(
+            'Esperando Ir al inicio (perrita). Luego mando consumo…'
+          );
           return esperarAccionEnTerminal(logoRes.id, token).then(function (st) {
             console.log(
               'Perrita en terminal:',
@@ -861,22 +858,25 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
             );
             if (st && st.status === 'timeout') {
               console.warn('Timeout perrita; mando solo consumo');
-              return enviarConsumo({
-                logo: false,
-                logoError: 'timeout esperando Inicio',
-              });
+              return enviarConsumo(
+                { logo: false, logoError: 'timeout esperando Inicio' },
+                false
+              );
             }
             if (
               st &&
               /canceled|cancelled|failed|expired/i.test(String(st.status || ''))
             ) {
-              console.warn('Perrita no impresa (' + st.status + '); mando consumo');
-              return enviarConsumo({
-                logo: false,
-                logoError: 'perrita ' + st.status,
-              });
+              console.warn(
+                'Perrita no impresa (' + st.status + '); mando consumo'
+              );
+              return enviarConsumo(
+                { logo: false, logoError: 'perrita ' + st.status },
+                false
+              );
             }
-            return enviarConsumo({ logo: true, logoId: logoRes.id });
+            // Perrita ya salió / está imprimiendo: encolar consumo sin cancelarla.
+            return enviarConsumo({ logo: true, logoId: logoRes.id }, true);
           });
         });
       })
@@ -885,10 +885,10 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
           'Perrita/cola falló, intento solo consumo:',
           err.message || err
         );
-        return enviarConsumo({
-          logo: false,
-          logoError: err.message || String(err),
-        });
+        return enviarConsumo(
+          { logo: false, logoError: err.message || String(err) },
+          false
+        );
       })
       .catch(function (err) {
         console.error('Error imprimiendo consumo Point:', err.message || err);
@@ -2347,20 +2347,19 @@ app.post(
       },
     ];
 
-    console.log('--- Ticket prueba: perrita + 0.1s + consumo (sin cobro) ---');
+    console.log('--- Ticket prueba: perrita, luego consumo (sin cobro) ---');
 
     // Responder al toque; la impresión sigue en background.
     res.json({
       ok: true,
       note:
-        'Prueba encolada (perrita + consumo). Toca Ir al inicio en el Point para verlos.',
+        'Perrita encolada. Toca Ir al inicio → sale la perrita; luego otra vez Ir al inicio → consumo.',
     });
 
     imprimirConsumoPoint('Mesa01', pedidosPrueba, 20, {
       delayMs: 0,
       closedAt: new Date().toISOString(),
       tipAmount: 2,
-      pausaEntreMs: 100,
     }).then(function (result) {
       if (result && result.ok) {
         console.log('Prueba OK:', result.id || '', 'logo:', result.logo);

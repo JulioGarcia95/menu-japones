@@ -720,7 +720,7 @@
       printPruebaBtn.textContent = 'Enviando prueba…';
       if (scanStatus) {
         scanStatus.textContent =
-          'Prueba: perrita + consumo. Toca Ir al inicio en el Point.';
+          'Prueba: Ir al inicio (perrita), luego otra vez Ir al inicio (consumo).';
       }
       setInicioAvisoVisible(true);
 
