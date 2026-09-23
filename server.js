@@ -598,71 +598,85 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     console.log('Chars:', content.length);
     console.log('------------------------------------');
 
-    // Perrita primero (como en la prueba); si falla, igual va el texto.
-    var logoPaso = Promise.resolve({ logo: false });
-    if (logoB64) {
-      logoPaso = enviarAccionPrintPoint(
-        terminalId,
-        token,
-        'image',
-        logoB64,
-        'logo-' + mesaKey + '-' + stamp,
-        1,
-        3
-      )
-        .then(function (logoRes) {
-          console.log('Logo consumo enviado:', logoRes.id || '(sin id)');
-          return { logo: true, logoId: logoRes.id };
-        })
-        .catch(function (logoErr) {
-          console.warn(
-            'Logo consumo omitido, sigo con texto:',
-            logoErr.message || logoErr
-          );
-          return {
-            logo: false,
-            logoError: logoErr.message || String(logoErr),
-          };
-        })
-        .then(function (info) {
-          return esperarMs(1500).then(function () {
-            return info;
-          });
-        });
-    }
+    // TEXTO primero (imprescindible). La perrita después, sin tumbar el consumo.
+    return enviarAccionPrintPoint(
+      terminalId,
+      token,
+      'custom',
+      content,
+      'consumo-' + mesaKey + '-' + stamp,
+      1,
+      20
+    )
+      .then(function (data) {
+        console.log('--- Ticket consumo enviado ---');
+        console.log('Action:', data.id || '(sin id)');
+        console.log('Status:', data.status || 'created');
+        console.log('------------------------------');
 
-    return logoPaso
-      .then(function (logoInfo) {
-        return enviarAccionPrintPoint(
-          terminalId,
-          token,
-          'custom',
-          content,
-          'consumo-' + mesaKey + '-' + stamp,
-          1,
-          20
-        ).then(function (data) {
-          console.log('--- Ticket consumo enviado ---');
-          console.log('Action:', data.id || '(sin id)');
-          console.log('Status:', data.status || 'created');
-          console.log('Logo:', logoInfo && logoInfo.logo ? 'si' : 'no');
-          console.log('------------------------------');
+        var result = {
+          ok: true,
+          id: data.id,
+          status: data.status || 'created',
+          logo: false,
+        };
+
+        if (!logoB64) {
           ultimoPrintConsumo = {
             ok: true,
             at: new Date().toISOString(),
             mesa: mesa,
             actionId: data.id,
             status: data.status || 'created',
-            logo: !!(logoInfo && logoInfo.logo),
+            logo: false,
             error: null,
           };
-          return {
-            ok: true,
-            id: data.id,
-            status: data.status || 'created',
-            logo: !!(logoInfo && logoInfo.logo),
-          };
-        });
+          return result;
+        }
+
+        return esperarMs(2000)
+          .then(function () {
+            return enviarAccionPrintPoint(
+              terminalId,
+              token,
+              'image',
+              logoB64,
+              'logo-' + mesaKey + '-' + stamp,
+              1,
+              3
+            );
+          })
+          .then(function (logoRes) {
+            console.log('Logo consumo enviado:', logoRes.id || '(sin id)');
+            result.logo = true;
+            ultimoPrintConsumo = {
+              ok: true,
+              at: new Date().toISOString(),
+              mesa: mesa,
+              actionId: data.id,
+              status: data.status || 'created',
+              logo: true,
+              error: null,
+            };
+            return result;
+          })
+          .catch(function (logoErr) {
+            console.warn(
+              'Logo consumo no impreso (texto sí):',
+              logoErr.message || logoErr
+            );
+            ultimoPrintConsumo = {
+              ok: true,
+              at: new Date().toISOString(),
+              mesa: mesa,
+              actionId: data.id,
+              status: data.status || 'created',
+              logo: false,
+              logoError: logoErr.message || String(logoErr),
+              error: null,
+            };
+            return result;
+          });
       })
       .catch(function (err) {
         console.error('Error imprimiendo consumo Point:', err.message || err);
