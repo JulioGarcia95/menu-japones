@@ -27,11 +27,11 @@
 
     <header class="cocina-header">
       <div>
-        <p class="cocina-kicker">Área de cocina</p>
+        <p class="cocina-kicker">Área de caja / meseros</p>
         <h1>Mesas / clientes</h1>
         <p class="cocina-sub">
-          Cuando un cliente pide la cuenta, cobra eligiendo el método de pago y
-          reabre la mesa para nuevos comensales.
+          Ordena por el cliente, revisa el historial de la mesa o cancela un
+          pedido con error. También puedes cobrar y reabrir la mesa.
         </p>
       </div>
       <div class="cocina-live">
@@ -123,6 +123,28 @@
             Confirmar cobro
           </button>
         </div>
+      </div>
+    </div>
+
+    <div class="mesa-pedidos-modal" id="mesa-pedidos-modal" hidden>
+      <div
+        class="mesa-pedidos-backdrop"
+        id="mesa-pedidos-backdrop"
+      ></div>
+      <div
+        class="mesa-pedidos-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mesa-pedidos-title"
+      >
+        <p class="mesa-pedidos-kicker">Pedidos de la mesa</p>
+        <h2 id="mesa-pedidos-title">Historial</h2>
+        <p class="mesa-pedidos-mesa" id="mesa-pedidos-mesa">Mesa01</p>
+        <p class="mesa-pedidos-status" id="mesa-pedidos-status">Cargando…</p>
+        <ul class="mesa-pedidos-list" id="mesa-pedidos-list"></ul>
+        <button type="button" class="mesa-pedidos-close" id="mesa-pedidos-close">
+          Cerrar
+        </button>
       </div>
     </div>
 

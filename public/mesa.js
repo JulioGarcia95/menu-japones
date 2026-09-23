@@ -71,8 +71,15 @@
   var mesaActual = mesaDesdeUrl || leerGuardada() || 'Mesa01';
   guardar(mesaActual);
 
+  var staffMode = false;
+  try {
+    var paramsStaff = new URLSearchParams(window.location.search);
+    staffMode = paramsStaff.get('staff') === '1';
+  } catch (e) {}
+
   // Escaneó el QR de la mesa: nueva visita → limpia sesión vieja
-  var forzarJoin = Boolean(mesaDesdeUrl);
+  // En modo staff no limpiamos (ordenamos sobre la mesa actual).
+  var forzarJoin = Boolean(mesaDesdeUrl) && !staffMode;
   if (forzarJoin) {
     limpiaSesion(mesaActual);
   }
@@ -139,6 +146,9 @@
     },
     consumeJoin: function () {
       forzarJoin = false;
+    },
+    isStaff: function () {
+      return staffMode;
     },
     menuPath: function (mesa) {
       return '/?mesa=' + encodeURIComponent(mesa || mesaActual);

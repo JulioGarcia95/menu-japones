@@ -2292,6 +2292,49 @@ body.mesa-expulsada {
   font-size: 0.85rem;
 }
 
+.mesa-actions {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.mesa-action {
+  appearance: none;
+  display: block;
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  border: 1px solid var(--line);
+  background: var(--paper-soft);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mesa-action:hover,
+.mesa-action:focus-visible {
+  border-color: var(--lacquer);
+  color: var(--lacquer);
+  outline: none;
+}
+
+.mesa-action-primary {
+  background: var(--lacquer);
+  border-color: var(--lacquer);
+  color: #fff;
+}
+
+.mesa-action-primary:hover,
+.mesa-action-primary:focus-visible {
+  background: var(--lacquer-deep);
+  border-color: var(--lacquer-deep);
+  color: #fff;
+}
+
 .mesa-reabrir {
   appearance: none;
   width: 100%;
@@ -2302,6 +2345,7 @@ body.mesa-expulsada {
   font-size: 0.92rem;
   font-weight: 700;
   padding: 0.75rem 1rem;
+  border-radius: 8px;
   cursor: pointer;
 }
 
@@ -2314,6 +2358,161 @@ body.mesa-expulsada {
 .mesa-reabrir:disabled {
   opacity: 0.6;
   cursor: wait;
+}
+
+body.mesa-pedidos-open {
+  overflow: hidden;
+}
+
+.mesa-pedidos-modal[hidden] {
+  display: none !important;
+}
+
+.mesa-pedidos-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.mesa-pedidos-modal.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mesa-pedidos-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 8, 12, 0.72);
+}
+
+.mesa-pedidos-panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 28rem);
+  max-height: min(88vh, 40rem);
+  overflow: auto;
+  padding: 1.25rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.mesa-pedidos-kicker {
+  margin: 0 0 0.25rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--lacquer);
+}
+
+.mesa-pedidos-panel h2 {
+  margin: 0 0 0.25rem;
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+}
+
+.mesa-pedidos-mesa {
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+  color: var(--mute);
+}
+
+.mesa-pedidos-status {
+  margin: 0 0 0.75rem;
+  color: var(--mute);
+  font-size: 0.9rem;
+}
+
+.mesa-pedidos-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.mesa-pedido-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.65rem;
+  align-items: start;
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(16, 18, 21, 0.45);
+}
+
+.mesa-pedido-meta {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  color: var(--mute);
+}
+
+.mesa-pedido-items {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.mesa-pedido-total {
+  margin: 0;
+  font-weight: 700;
+}
+
+.mesa-pedido-cancel {
+  appearance: none;
+  border: 1px solid rgba(230, 57, 70, 0.45);
+  background: rgba(230, 57, 70, 0.12);
+  color: #ff8a93;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mesa-pedido-cancel:hover,
+.mesa-pedido-cancel:focus-visible {
+  background: rgba(230, 57, 70, 0.22);
+  outline: none;
+}
+
+.mesa-pedidos-close {
+  appearance: none;
+  width: 100%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.75rem;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.staff-banner {
+  position: sticky;
+  top: 3.4rem;
+  z-index: 25;
+  margin: 0;
+  padding: 0.55rem 1rem;
+  text-align: center;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--lacquer);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .pago-modal {

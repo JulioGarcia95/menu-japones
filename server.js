@@ -1305,6 +1305,113 @@ app.post('/api/pedidos', function (req, res) {
   res.json({ ok: true, id: pedido.id, mesa: pedido.mesa });
 });
 
+// Pedido creado por staff (Clientes / Caja), sin sesión de QR del cliente.
+app.post('/api/pedidos/staff', requireAreas(['caja', 'admin']), function (req, res) {
+  var items = req.body && req.body.items;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ ok: false, error: 'El pedido no tiene ítems' });
+  }
+
+  var mesa = normalizarMesa(req.body.mesa);
+  if (!mesa) {
+    return res
+      .status(400)
+      .json({ ok: false, error: 'Indica la mesa (ejemplo: Mesa01)' });
+  }
+
+  var mesas = leerMesas();
+  var info = mesas[mesa] || {};
+  var sessionId = info.sessionId || nuevoSessionId();
+  if (!info.sessionId) {
+    info.sessionId = sessionId;
+    mesas[mesa] = info;
+    guardarMesas(mesas);
+  }
+
+  var pedido = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    mesa: mesa,
+    sessionId: sessionId,
+    status: 'pendiente',
+    paid: false,
+    createdBy: 'staff',
+    createdAt: new Date().toISOString(),
+    items: items.map(function (item) {
+      return {
+        id: String(item.id || ''),
+        name: String(item.name || ''),
+        price: Number(item.price) || 0,
+        qty: Math.max(1, Number(item.qty) || 1),
+      };
+    }),
+    total: Number(req.body.total) || 0,
+  };
+
+  var pedidos = leerPedidos();
+  pedidos.push(pedido);
+  guardarPedidos(pedidos);
+
+  console.log('--- Pedido staff ---');
+  console.log('Mesa:', pedido.mesa);
+  console.log('ID:', pedido.id);
+  pedido.items.forEach(function (item) {
+    console.log('-', item.qty + 'x', item.name, '$' + item.price);
+  });
+  console.log('-------------------');
+
+  res.json({ ok: true, id: pedido.id, mesa: pedido.mesa, staff: true });
+});
+
+app.delete(
+  '/api/pedidos/:id',
+  requireAreas(['caja', 'cocina', 'admin']),
+  function (req, res) {
+    var id = String(req.params.id || '').trim();
+    if (!id) {
+      return res.status(400).json({ ok: false, error: 'Falta id del pedido' });
+    }
+
+    var pedidos = leerPedidos();
+    var index = -1;
+    for (var i = 0; i < pedidos.length; i++) {
+      if (pedidos[i].id === id) {
+        index = i;
+        break;
+      }
+    }
+
+    if (index === -1) {
+      return res.status(404).json({ ok: false, error: 'Pedido no encontrado' });
+    }
+
+    var pedido = pedidos[index];
+    if (pedido.paid) {
+      return res.status(409).json({
+        ok: false,
+        error: 'No se puede cancelar un pedido ya cobrado',
+      });
+    }
+
+    var status = normalizarEstado(pedido.status);
+    if (status === 'entregado') {
+      return res.status(409).json({
+        ok: false,
+        error: 'El pedido ya fue entregado. No se puede cancelar.',
+      });
+    }
+
+    pedidos.splice(index, 1);
+    guardarPedidos(pedidos);
+
+    console.log('--- Pedido cancelado ---');
+    console.log('Mesa:', pedido.mesa);
+    console.log('ID:', id);
+    console.log('------------------------');
+
+    res.json({ ok: true, canceledId: id, mesa: pedido.mesa });
+  }
+);
+
 app.patch('/api/pedidos/:id', requireAreas(['cocina', 'admin']), function (req, res) {
   var id = String(req.params.id || '');
   var status = normalizarEstado(req.body && req.body.status);

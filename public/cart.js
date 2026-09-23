@@ -13,6 +13,8 @@
   var isOpen = false;
   var orderingClosed = localStorage.getItem(CLOSE_KEY) === '1';
   var expulsado = localStorage.getItem(EXPELLED_KEY) === '1';
+  var staffMode =
+    Boolean(window.MatildaMesa && window.MatildaMesa.isStaff && window.MatildaMesa.isStaff());
 
   var cartDock = document.getElementById('cart-dock');
   var cartToggle = document.getElementById('cart-toggle');
@@ -95,6 +97,14 @@
 
   if (!cartToggle || !cartSheet) return;
 
+  if (staffMode && !document.querySelector('.staff-banner')) {
+    var banner = document.createElement('p');
+    banner.className = 'staff-banner';
+    banner.textContent =
+      'Modo staff · Ordenando para ' + MESA_FIJA + ' (sin QR del cliente)';
+    document.body.insertBefore(banner, document.body.firstChild);
+  }
+
   if (mesaFija) mesaFija.textContent = MESA_FIJA;
 
   function loadCart() {
@@ -136,7 +146,7 @@
 
   function addItem(id, name, price) {
     checkMesaState(function () {
-      if (expulsado) {
+      if (!staffMode && expulsado) {
         openCart();
         cartStatus.textContent =
           'Esta visita ya terminó. Escanea el QR de la mesa para ordenar de nuevo.';
@@ -145,7 +155,7 @@
         showExpulsadoBanner();
         return;
       }
-      if (orderingClosed) {
+      if (!staffMode && orderingClosed) {
         openCart();
         cartStatus.textContent =
           'La cuenta ya fue solicitada. Ya no se puede ordenar más comida.';
@@ -478,7 +488,7 @@
     cartBarTotal.textContent = formatMoney(total);
     document.body.classList.toggle('has-cart', count > 0);
     cartToggle.classList.toggle('has-items', count > 0);
-    var bloqueado = orderingClosed || expulsado;
+    var bloqueado = staffMode ? false : orderingClosed || expulsado;
     document.body.classList.toggle('ordering-closed', bloqueado);
     document.body.classList.toggle('mesa-expulsada', expulsado);
     document.querySelectorAll('.btn-add').forEach(function (btn) {
@@ -732,30 +742,36 @@
   cartConfirm.addEventListener('click', function () {
     var items = cartItems();
     if (!items.length) return;
-    if (expulsado) {
+    if (!staffMode && expulsado) {
       cartStatus.textContent =
         'Esta visita ya terminó. Escanea el QR de la mesa para ordenar de nuevo.';
       showExpulsadoBanner();
       return;
     }
-    if (orderingClosed) {
+    if (!staffMode && orderingClosed) {
       cartStatus.textContent =
         'La cuenta ya fue solicitada. Ya no se puede ordenar más comida.';
       return;
     }
 
     cartConfirm.disabled = true;
-    cartStatus.textContent = 'Enviando pedido…';
+    cartStatus.textContent = staffMode
+      ? 'Enviando pedido de staff…'
+      : 'Enviando pedido…';
 
-    fetch('/api/pedidos', {
+    var endpoint = staffMode ? '/api/pedidos/staff' : '/api/pedidos';
+    var payload = {
+      items: items,
+      total: cartSum(),
+      mesa: MESA_FIJA,
+    };
+    if (!staffMode) payload.sessionId = getSessionId();
+
+    fetch(endpoint, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: items,
-        total: cartSum(),
-        mesa: MESA_FIJA,
-        sessionId: getSessionId(),
-      }),
+      body: JSON.stringify(payload),
     })
       .then(function (res) {
         return res.json().then(function (data) {
@@ -779,7 +795,7 @@
       })
       .catch(function (err) {
         var msg = String(err.message || '');
-        if (err.expulsado || msg.indexOf('visita ya terminó') !== -1) {
+        if (!staffMode && (err.expulsado || msg.indexOf('visita ya terminó') !== -1)) {
           expulsado = true;
           orderingClosed = true;
           localStorage.setItem(EXPELLED_KEY, '1');
@@ -788,7 +804,7 @@
           saveCart();
           showExpulsadoBanner();
           render();
-        } else if (msg.indexOf('ya fue solicitada') !== -1) {
+        } else if (!staffMode && msg.indexOf('ya fue solicitada') !== -1) {
           orderingClosed = true;
           localStorage.setItem(CLOSE_KEY, '1');
           render();
