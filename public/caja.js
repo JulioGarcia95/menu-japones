@@ -295,10 +295,10 @@
             mesaTxt +
             ' listo (propina ' +
             formatMoney(tipNum) +
-            '). Ticket MP listo. En el Point: toca Inicio para el de consumo.'
+            '). Ticket MP listo. En el Point: Inicio → consumo; luego sale la perrita (o otro Inicio).'
           : 'Cobro de ' +
             mesaTxt +
-            ' listo. Ticket MP listo. En el Point: toca Inicio para el de consumo.';
+            ' listo. Ticket MP listo. En el Point: Inicio → consumo; luego sale la perrita (o otro Inicio).';
     }
   }
 

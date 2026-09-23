@@ -554,6 +554,62 @@ function enviarAccionPrintPoint(
   });
 }
 
+function consultarAccionPrintPoint(actionId, token) {
+  if (!actionId || !token) {
+    return Promise.resolve({ status: null });
+  }
+  return fetch(
+    'https://api.mercadopago.com/terminals/v1/actions/' +
+      encodeURIComponent(actionId),
+    { headers: { Authorization: 'Bearer ' + token } }
+  ).then(function (mpRes) {
+    return mpRes.text().then(function (raw) {
+      var data = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        data = {};
+      }
+      return {
+        id: data.id || actionId,
+        status: data.status || null,
+      };
+    });
+  });
+}
+
+// Espera a que el Point tome la impresión (on_terminal) antes de mandar la siguiente.
+function esperarAccionEnTerminal(actionId, token, intento) {
+  intento = Number(intento) || 0;
+  if (intento >= 45) {
+    return Promise.resolve({ id: actionId, status: 'timeout' });
+  }
+  return consultarAccionPrintPoint(actionId, token)
+    .then(function (info) {
+      var s = String(info.status || '').toLowerCase();
+      if (
+        s === 'on_terminal' ||
+        s === 'finished' ||
+        s === 'processed' ||
+        s === 'done' ||
+        s === 'completed'
+      ) {
+        return info;
+      }
+      if (s === 'canceled' || s === 'cancelled' || s === 'failed' || s === 'expired') {
+        return info;
+      }
+      return esperarMs(1500).then(function () {
+        return esperarAccionEnTerminal(actionId, token, intento + 1);
+      });
+    })
+    .catch(function () {
+      return esperarMs(1500).then(function () {
+        return esperarAccionEnTerminal(actionId, token, intento + 1);
+      });
+    });
+}
+
 function ultimaCuentaMesa(mesa) {
   var cuentas = leerCuentas();
   for (var i = cuentas.length - 1; i >= 0; i--) {
@@ -598,7 +654,7 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
     console.log('Chars:', content.length);
     console.log('------------------------------------');
 
-    // TEXTO primero (imprescindible). La perrita después, sin tumbar el consumo.
+    // 1) Ticket de consumo (texto). 2) Cuando el Point lo toma, otro ticket = perrita.
     return enviarAccionPrintPoint(
       terminalId,
       token,
@@ -634,8 +690,17 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
           return result;
         }
 
-        return esperarMs(2000)
+        return esperarAccionEnTerminal(data.id, token)
+          .then(function (st) {
+            console.log(
+              'Consumo en terminal:',
+              (st && st.status) || '(sin status)'
+            );
+            // Pequeña pausa para que termine de salir el papel del consumo
+            return esperarMs(3000);
+          })
           .then(function () {
+            console.log('--- Enviando ticket perrita (aparte) ---');
             return enviarAccionPrintPoint(
               terminalId,
               token,
@@ -643,12 +708,13 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
               logoB64,
               'logo-' + mesaKey + '-' + stamp,
               1,
-              3
+              10
             );
           })
           .then(function (logoRes) {
-            console.log('Logo consumo enviado:', logoRes.id || '(sin id)');
+            console.log('Ticket perrita enviado:', logoRes.id || '(sin id)');
             result.logo = true;
+            result.logoId = logoRes.id;
             ultimoPrintConsumo = {
               ok: true,
               at: new Date().toISOString(),
@@ -656,13 +722,14 @@ function imprimirConsumoPoint(mesa, pedidos, total, opts) {
               actionId: data.id,
               status: data.status || 'created',
               logo: true,
+              logoId: logoRes.id,
               error: null,
             };
             return result;
           })
           .catch(function (logoErr) {
             console.warn(
-              'Logo consumo no impreso (texto sí):',
+              'Ticket perrita no enviado (consumo sí):',
               logoErr.message || logoErr
             );
             ultimoPrintConsumo = {
