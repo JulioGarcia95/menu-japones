@@ -464,6 +464,60 @@ body.cart-open {
   color: var(--mute);
 }
 
+.historial-prep[hidden] {
+  display: none !important;
+}
+
+.historial-prep {
+  margin: 0 0 1.15rem;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(46, 204, 113, 0.35);
+  background:
+    linear-gradient(135deg, rgba(46, 204, 113, 0.12), transparent 55%),
+    rgba(28, 34, 42, 0.85);
+}
+
+.historial-prep.is-received {
+  border-color: rgba(240, 211, 106, 0.4);
+  background:
+    linear-gradient(135deg, rgba(240, 211, 106, 0.1), transparent 55%),
+    rgba(28, 34, 42, 0.85);
+}
+
+.historial-prep-kicker {
+  margin: 0 0 0.25rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #7dffb0;
+}
+
+.historial-prep.is-received .historial-prep-kicker {
+  color: #f0d36a;
+}
+
+.historial-prep-title {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.historial-prep-text {
+  margin: 0;
+  color: var(--mute);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.historial-table tbody tr.historial-row-active {
+  background: rgba(46, 204, 113, 0.06);
+}
+
 .historial-sheet {
   margin-top: 0.5rem;
 }
