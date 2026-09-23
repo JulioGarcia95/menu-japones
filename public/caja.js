@@ -285,7 +285,7 @@
     }
     showToast(toastMsg);
 
-    // Un solo ticket de consumo; se imprime al liberar la pantalla del Point.
+    // MP sale solo; consumo al tocar Inicio en el Point.
     showScan();
     if (scanStatus) {
       scanStatus.textContent =
@@ -294,10 +294,10 @@
             mesaTxt +
             ' listo (propina ' +
             formatMoney(tipNum) +
-            '). Escanea el siguiente QR…'
+            '). Ticket MP listo. En el Point: toca Inicio para el de consumo.'
           : 'Cobro de ' +
             mesaTxt +
-            ' listo. Escanea el siguiente QR…';
+            ' listo. Ticket MP listo. En el Point: toca Inicio para el de consumo.';
     }
   }
 
